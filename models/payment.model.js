@@ -9,3 +9,9 @@ const paymentSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model('Payment', paymentSchema);
+paymentSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    ret.amount = parseFloat(ret.amount.toString());
+    return ret;
+  }
+});

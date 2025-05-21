@@ -1,14 +1,22 @@
 const mongoose = require('mongoose');
+const Shop = require('../models/shop.model'); 
+const Category = require('../models/category.model'); 
 
 const productSchema = new mongoose.Schema({
-  shop_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', required: true },
   category_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
+shop_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', required: true },
   name: { type: String, required: true },
   description: String,
   price: { type: mongoose.Types.Decimal128, required: true },
-  stock: Number,
-  rating: { type: Number, default: 0 },
+  stock: { type: Number, default: 0 },
   created_at: { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model('Product', productSchema);
+productSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    ret.price = parseFloat(ret.price.toString());
+    return ret;
+  }
+});
+

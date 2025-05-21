@@ -29,10 +29,23 @@ const swaggerOptions = {
       title: 'SouvenirHub API',
       version: '1.0.0',
       description: 'API documentation for SouvenirHub project'
-    }
+    },
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT'
+        }
+      }
+    },
+    security: [
+      { bearerAuth: [] }
+    ]
   },
-  apis: ['./routes/*.js'], // Comment-based docs
+  apis: ['./routes/*.js'], // đường dẫn chứa Swagger comment
 };
+
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -45,6 +58,12 @@ app.get('/', (req, res) => {
 
 const authRoutes = require('./routes/auth.routes');
 app.use('/api/auth', authRoutes);
+
+const productRoutes = require('./routes/product.routes');
+const categoryRoutes = require('./routes/category.routes');
+
+app.use('/api/products', productRoutes);
+app.use('/api/categories', categoryRoutes);
 
 
 module.exports = app;

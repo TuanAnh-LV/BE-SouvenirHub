@@ -8,3 +8,9 @@ const orderItemSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model('OrderItem', orderItemSchema);
+orderItemSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    ret.price = parseFloat(ret.price.toString());
+    return ret;
+  }
+});
