@@ -66,4 +66,24 @@ app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 
 
+const addressRoutes = require('./routes/address.routes');
+const orderRoutes = require('./routes/order.routes');
+const paymentRoutes = require('./routes/payment.routes');
+
+app.use('/api/addresses', addressRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/payments', paymentRoutes);
+
+const reviewRoutes = require('./routes/review.routes');
+const sellerRoutes = require('./routes/seller.routes');
+
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/seller', sellerRoutes);
+
+const adminRoutes = require('./routes/admin.routes');
+app.use('/api/admin', adminRoutes);
+
+const vnpayRoutes = require('./routes/vnpay.routes');
+app.use('/api/payments', vnpayRoutes);
+
 module.exports = app;
