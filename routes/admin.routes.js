@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/admin.controller');
+
 const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
 
 /**
@@ -110,5 +111,67 @@ router.put('/orders/status', verifyToken, requireRole(['admin']), adminControlle
  */
 router.get('/stats', verifyToken, requireRole(['admin']), adminController.getAdminStats);
 
+/**
+ * @swagger
+ * /api/shops/pending:
+ *   get:
+ *     summary: Admin get all pending shops
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of pending shops
+ */
+router.get('/pending', verifyToken, requireRole(['admin']), adminController.getAllPendingShops);
 
+/**
+ * @swagger
+ * /api/admin/approve/{shopId}:
+ *   put:
+ *     summary: Admin approve shop
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: shopId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Shop approved
+ */
+router.put('/approve/:shopId', verifyToken, requireRole(['admin']), adminController.approveShop);
+
+/**
+ * @swagger
+ * /api/admin/reject/{shopId}:
+ *   put:
+ *     summary: Admin reject shop
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: shopId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 example: Hồ sơ không hợp lệ
+ *     responses:
+ *       200:
+ *         description: Shop rejected
+ */
+router.put('/reject/:shopId', verifyToken, requireRole(['admin']), adminController.rejectShop);
 module.exports = router;

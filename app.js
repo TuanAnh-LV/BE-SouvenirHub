@@ -11,6 +11,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
@@ -43,7 +44,8 @@ const swaggerOptions = {
       { bearerAuth: [] }
     ]
   },
-  apis: ['./routes/*.js'], // đường dẫn chứa Swagger comment
+  apis: ['./routes/**/*.js']
+, // đường dẫn chứa Swagger comment
 };
 
 
@@ -85,5 +87,16 @@ app.use('/api/admin', adminRoutes);
 
 const vnpayRoutes = require('./routes/vnpay.routes');
 app.use('/api/payments', vnpayRoutes);
+
+const productImageRoutes = require('./routes/productImage.routes');
+app.use('/api/product-images', productImageRoutes);
+
+const shopRoutes = require('./routes/shop.routes');
+app.use('/api/shops', shopRoutes);
+
+const shopApplicationRoutes = require('./routes/shopApplication.routes');
+app.use('/api/shop-applications', shopApplicationRoutes);
+
+
 
 module.exports = app;

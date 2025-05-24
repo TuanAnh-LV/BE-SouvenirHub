@@ -3,7 +3,7 @@ const Category = require('../models/category.model');
 
 exports.getAll = async (req, res) => {
   try {
-    const categories = await Category.find();
+    const categories = await Category.find().populate('parent_id', 'name');
     res.json(categories);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch categories' });
@@ -12,17 +12,26 @@ exports.getAll = async (req, res) => {
 
 exports.create = async (req, res) => {
   try {
-    const category = new Category(req.body);
+    const data = { ...req.body };
+    if (data.parent_id === '' || data.parent_id === null) {
+      delete data.parent_id; // tránh CastError khi parent_id rỗng
+    }
+    const category = new Category(data);
     await category.save();
     res.status(201).json(category);
   } catch (err) {
-    res.status(400).json({ error: 'Failed to create category' });
+    console.error('Create category error:', err);
+    res.status(400).json({ error: 'Failed to create category', detail: err.message });
   }
 };
 
 exports.update = async (req, res) => {
   try {
-    const updated = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const data = { ...req.body };
+    if (data.parent_id === '' || data.parent_id === null) {
+      delete data.parent_id;
+    }
+    const updated = await Category.findByIdAndUpdate(req.params.id, data, { new: true });
     res.json(updated);
   } catch (err) {
     res.status(400).json({ error: 'Failed to update category' });

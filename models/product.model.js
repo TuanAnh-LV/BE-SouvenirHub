@@ -4,7 +4,7 @@ const Category = require('../models/category.model');
 
 const productSchema = new mongoose.Schema({
   category_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
-shop_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', required: true },
+  shop_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', required: true },
   name: { type: String, required: true },
   description: String,
   price: { type: mongoose.Types.Decimal128, required: true },

@@ -70,6 +70,8 @@ router.post('/', verifyToken, requireRole(['admin']), categoryController.create)
  *             properties:
  *               name:
  *                 type: string
+ *               parent_id:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Category updated
