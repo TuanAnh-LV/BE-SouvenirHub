@@ -31,6 +31,21 @@ const swaggerOptions = {
       version: '1.0.0',
       description: 'API documentation for SouvenirHub project'
     },
+    tags: [
+      { name: 'Auth', description: 'Authentication (register, login, forgot password)' },
+      { name: 'Admin', description: 'Admin dashboard and control' },
+      { name: 'User', description: 'User profile management' },
+      { name: 'Seller', description: 'Seller management and operations' },
+      { name: 'Shops', description: 'Shop registration and management' },
+      { name: 'ShopApplications', description: 'Shop application management' },
+      { name: 'Categories', description: 'Product categories' },
+      { name: 'Products', description: 'Product creation and browsing' },
+      { name: 'ProductImages', description: 'Product image management' },
+      { name: 'Orders', description: 'Order placement and tracking' },
+      { name: 'Addresses', description: 'Shipping address management' },
+      { name: 'Payments', description: 'Payment processing and management' },
+      { name: 'Reviews', description: 'Product reviews and ratings' },
+    ],
     components: {
       securitySchemes: {
         bearerAuth: {
@@ -44,9 +59,9 @@ const swaggerOptions = {
       { bearerAuth: [] }
     ]
   },
-  apis: ['./routes/**/*.js']
-, // đường dẫn chứa Swagger comment
+  apis: ['./routes/**/*.js'] // hoặc './routes/*.js' nếu không có subfolder
 };
+
 
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
@@ -97,6 +112,8 @@ app.use('/api/shops', shopRoutes);
 const shopApplicationRoutes = require('./routes/shopApplication.routes');
 app.use('/api/shop-applications', shopApplicationRoutes);
 
+const userRoutes = require('./routes/user.routes');
+app.use('/api/user', userRoutes);
 
 
 module.exports = app;
