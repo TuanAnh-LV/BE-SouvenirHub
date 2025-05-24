@@ -113,7 +113,7 @@ router.get('/stats', verifyToken, requireRole(['admin']), adminController.getAdm
 
 /**
  * @swagger
- * /api/shops/pending:
+ * /api/admin/pending:
  *   get:
  *     summary: Admin get all pending shops
  *     tags: [Admin]
@@ -125,31 +125,49 @@ router.get('/stats', verifyToken, requireRole(['admin']), adminController.getAdm
  */
 router.get('/pending', verifyToken, requireRole(['admin']), adminController.getAllPendingShops);
 
+
+router.get('/shops', verifyToken, requireRole(['admin']), adminController.getAllShops);
 /**
  * @swagger
- * /api/admin/approve/{shopId}:
- *   put:
- *     summary: Admin approve shop
+ * /api/admin/shops:
+ *   get:
+ *     summary: Get all shops
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of shops
+ */
+
+router.get('/shops/:id', verifyToken, requireRole(['admin']), adminController.getShopById);
+/**
+ * @swagger
+ * /api/admin/shops/{id}:
+ *   get:
+ *     summary: Get shop by ID
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: shopId
+ *         name: id
  *         required: true
  *         schema:
  *           type: string
  *     responses:
  *       200:
- *         description: Shop approved
+ *         description: Shop detail
+ *       404:
+ *         description: Shop not found
  */
-router.put('/approve/:shopId', verifyToken, requireRole(['admin']), adminController.approveShop);
 
+router.put('/shops/:shopId/status', verifyToken, requireRole(['admin']), adminController.updateShopStatus);
 /**
  * @swagger
- * /api/admin/reject/{shopId}:
+ * /api/admin/shops/{shopId}/status:
  *   put:
- *     summary: Admin reject shop
+ *     summary: Update status of a shop (approve/reject)
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
@@ -165,13 +183,84 @@ router.put('/approve/:shopId', verifyToken, requireRole(['admin']), adminControl
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - status
  *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [pending, approved, rejected]
  *               reason:
  *                 type: string
  *                 example: Hồ sơ không hợp lệ
  *     responses:
  *       200:
- *         description: Shop rejected
+ *         description: Shop status updated
+ *       400:
+ *         description: Invalid status
+ *       404:
+ *         description: Shop not found
  */
-router.put('/reject/:shopId', verifyToken, requireRole(['admin']), adminController.rejectShop);
+
+
+router.put('/shops/:id', verifyToken, requireRole(['admin']), adminController.updateShop);
+/**
+ * @swagger
+ * /api/admin/shops/{id}:
+ *   put:
+ *     summary: Update shop information
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               logo_url:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Shop updated
+ *       404:
+ *         description: Shop not found
+ */
+
+router.delete('/shops/:id', verifyToken, requireRole(['admin']), adminController.deleteShop);
+/**
+ * @swagger
+ * /api/admin/shops/{id}:
+ *   delete:
+ *     summary: Delete a shop
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Shop deleted
+ *       404:
+ *         description: Shop not found
+ */
+
+
+
+
+
 module.exports = router;
