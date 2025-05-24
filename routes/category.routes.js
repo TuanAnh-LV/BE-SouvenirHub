@@ -3,6 +3,8 @@ const express = require('express');
 const router = express.Router();
 const categoryController = require('../controllers/category.controller');
 const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
+const { createCategoryValidator, updateCategoryValidator } = require('../validators/category.validator');
+const { validate } = require('../middlewares/validate.middleware');
 /**
  * @swagger
  * tags:
@@ -45,7 +47,7 @@ router.get('/', categoryController.getAll);
  *       201:
  *         description: Category created
  */
-router.post('/', verifyToken, requireRole(['admin']), categoryController.create);
+router.post('/', verifyToken, requireRole(['admin']),createCategoryValidator, validate, categoryController.create);
 
 /**
  * @swagger
@@ -76,7 +78,7 @@ router.post('/', verifyToken, requireRole(['admin']), categoryController.create)
  *       200:
  *         description: Category updated
  */
-router.put('/:id', verifyToken, requireRole(['admin']), categoryController.update);
+router.put('/:id', verifyToken,requireRole(['admin']), updateCategoryValidator, validate, categoryController.update);
 
 /**
  * @swagger

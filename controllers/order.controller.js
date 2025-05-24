@@ -68,3 +68,56 @@ exports.getOrderById = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch order' });
   }
 };
+
+// Hủy đơn hàng (chỉ khi còn trạng thái "pending")
+exports.cancelOrder = async (req, res) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.id, user_id: req.user.id });
+
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.status !== 'pending') {
+      return res.status(400).json({ error: 'Only pending orders can be cancelled' });
+    }
+
+    order.status = 'cancelled';
+    await order.save();
+
+    // Hoàn trả lại số lượng hàng vào kho
+    const orderItems = await OrderItem.find({ order_id: order._id });
+    for (const item of orderItems) {
+      const product = await Product.findById(item.product_id);
+      if (product) {
+        product.stock += item.quantity;
+        await product.save();
+      }
+    }
+
+    res.json({ message: 'Order cancelled' });
+  } catch (err) {
+    console.error('Cancel order error:', err);
+    res.status(500).json({ error: 'Failed to cancel order' });
+  }
+};
+
+// Cập nhật trạng thái đơn hàng (dành cho admin hoặc xử lý đơn hàng)
+exports.updateOrderStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const allowedStatuses = ['pending', 'processing', 'shipped', 'completed', 'cancelled'];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    order.status = status;
+    await order.save();
+
+    res.json({ message: 'Order status updated', order });
+  } catch (err) {
+    console.error('Update status error:', err);
+    res.status(500).json({ error: 'Failed to update order status' });
+  }
+};

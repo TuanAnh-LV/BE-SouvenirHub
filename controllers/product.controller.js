@@ -22,7 +22,42 @@ exports.getAll = async (req, res) => {
     res.json(productsWithImages);
   } catch (err) {
     console.error('Error fetching products:', err);
-    res.status(500).json({ error: 'Failed to fetch products' });
+    res.status(500).json({ error: 'PRODUCT_FETCH_FAILED', message: 'Failed to fetch product' });
+  }
+};
+
+exports.getProductsByCategory = async (req, res) => {
+  try {
+    const products = await Product.find({ category_id: req.params.categoryId });
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ error: 'PRODUCT_FETCH_FAILED', message: 'Failed to fetch products by category' });
+  }
+};
+
+exports.searchProducts = async (req, res) => {
+  try {
+    const query = req.query.q || '';
+    const products = await Product.find({ name: { $regex: query, $options: 'i' } });
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ error: 'PRODUCT_FETCH_FAILED', message: 'Failed to search products' });
+  }
+};
+
+exports.filterProducts = async (req, res) => {
+  try {
+    const { priceMin, priceMax, rating } = req.query;
+    const filter = {};
+    if (priceMin || priceMax) filter.price = {};
+    if (priceMin) filter.price.$gte = Number(priceMin);
+    if (priceMax) filter.price.$lte = Number(priceMax);
+    if (rating) filter.rating = { $gte: Number(rating) };
+
+    const products = await Product.find(filter);
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ error: 'PRODUCT_FETCH_FAILED', message: 'Failed to filter products' });
   }
 };
 
@@ -41,7 +76,7 @@ exports.getById = async (req, res) => {
     res.json({ ...product.toObject(), images: imageUrls });
   } catch (err) {
     console.error('Error fetching product by ID:', err);
-    res.status(500).json({ error: 'Failed to fetch product' });
+    res.status(500).json({ error: 'PRODUCT_FETCH_FAILED', message: 'Failed to fetch product' });
   }
 };
 
@@ -56,7 +91,7 @@ exports.create = async (req, res) => {
 
     res.status(201).json(product);
   } catch (err) {
-    res.status(400).json({ error: 'Failed to create product' });
+    res.status(400).json({ error: 'PRODUCT_CREATE_FAILED', message: 'Failed to create product' });
   }
 };
 
@@ -70,7 +105,7 @@ exports.update = async (req, res) => {
     if (!updated) return res.status(404).json({ error: 'Product not found or unauthorized' });
     res.json(updated);
   } catch (err) {
-    res.status(400).json({ error: 'Failed to update product' });
+    res.status(400).json({ error: 'PRODUCT_UPDATE_FAILED', message: 'Failed to update product' });
   }
 };
 
@@ -80,6 +115,6 @@ exports.remove = async (req, res) => {
     if (!removed) return res.status(404).json({ error: 'Product not found or unauthorized' });
     res.json({ message: 'Product deleted' });
   } catch (err) {
-    res.status(400).json({ error: 'Failed to delete product' });
+    res.status(400).json({ error: 'PRODUCT_DELETE_FAILED', message: 'Failed to delete product' });
   }
 };

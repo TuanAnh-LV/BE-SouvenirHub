@@ -3,6 +3,14 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/auth.controller');
 const { verifyToken } = require('../middlewares/auth.middleware');
+const {
+    registerValidator,
+    loginValidator,
+    forgotPasswordValidator,
+    resetPasswordValidator
+  } = require('../validators/auth.validator');
+  
+  const { validate } = require('../middlewares/validate.middleware');
 /**
  * @swagger
  * tags:
@@ -44,7 +52,7 @@ const { verifyToken } = require('../middlewares/auth.middleware');
  *         description: Internal server error
  */
 
-router.post('/register', authController.register);
+router.post('/register', registerValidator, validate, authController.register);
 
 /**
  * @swagger
@@ -76,7 +84,7 @@ router.post('/register', authController.register);
  *       500:
  *         description: Internal server error
  */
-router.post('/login', authController.login);
+router.post('/login', loginValidator, validate, authController.login);
 
 
 router.post('/google-login', authController.googleLogin);
@@ -168,7 +176,7 @@ router.put('/change-password', verifyToken, authController.changePassword);
  *       500:
  *         description: Internal server error
  */
-router.post('/forgot-password', authController.forgotPassword);
+router.post('/forgot-password', forgotPasswordValidator, validate, authController.forgotPassword);
 /**
  * @swagger
  * /api/auth/forgot-password:
@@ -191,7 +199,7 @@ router.post('/forgot-password', authController.forgotPassword);
  *       404:
  *         description: Email not found
  */
-router.post('/reset-password', authController.resetPassword);
+router.post('/reset-password', resetPasswordValidator, validate, authController.resetPassword);
 /**
  * @swagger
  * /api/auth/reset-password:

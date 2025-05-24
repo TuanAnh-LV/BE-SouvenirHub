@@ -38,21 +38,8 @@ const shopController = require('../controllers/shop.controller');
  *       400:
  *         description: Registration failed
  */
-router.post('/', verifyToken, async (req, res) => {
-  try {
-    const { name, description } = req.body;
-    const existingShop = await Shop.findOne({ user_id: req.user.id });
-    if (existingShop) {
-      return res.status(400).json({ error: 'You have already registered a shop' });
-    }
-    const shop = new Shop({ user_id: req.user.id, name, description, status: 'pending' });
-    await shop.save();
-    res.status(201).json({ message: 'Shop registered and pending approval', shop });
-  } catch (err) {
-    console.error('Create shop error:', err);
-    res.status(400).json({ error: 'Failed to register shop', detail: err.message });
-  }
-});
+router.post('/', verifyToken, shopController.createShop);
+
 
 /**
  * @swagger
@@ -69,6 +56,58 @@ router.post('/', verifyToken, async (req, res) => {
  *         description: No shop found
  */
 router.get('/me', verifyToken, shopController.getMyShop);
+
+const upload = require('../middlewares/upload.middleware');
+
+/**
+ * @swagger
+ * /api/shops/me:
+ *   put:
+ *     summary: Update your shop information
+ *     tags: [Shops]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               logo:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Shop updated
+ *       404:
+ *         description: Shop not found
+ */
+router.put('/me', verifyToken, upload.single('logo'), shopController.updateShop);
+
+/**
+ * @swagger
+ * /api/shops/{id}:
+ *   get:
+ *     summary: Get public profile of a shop
+ *     tags: [Shops]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Shop public profile
+ *       404:
+ *         description: Shop not found
+ */
+router.get('/:id', shopController.getShopById);
 
 
 

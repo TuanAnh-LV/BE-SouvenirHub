@@ -2,9 +2,8 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/user.controller');
 const { verifyToken } = require('../middlewares/auth.middleware');
-const multer = require('multer');
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const upload = require('../middlewares/upload.middleware');
+
 /**
  * @swagger
  * tags:

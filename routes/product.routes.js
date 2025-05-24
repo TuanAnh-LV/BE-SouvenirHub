@@ -2,6 +2,11 @@ const express = require('express');
 const router = express.Router();
 const productController = require('../controllers/product.controller');
 const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
+
+const { createProductValidator } = require('../validators/product.validator');
+const { validate } = require('../middlewares/validate.middleware');
+
+
 /**
  * @swagger
  * tags:
@@ -41,6 +46,70 @@ router.get('/:id', productController.getById);
 
 /**
  * @swagger
+ * /api/products/category/{categoryId}:
+ *   get:
+ *     summary: Get products by category
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: categoryId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Products by category
+ */
+router.get('/category/:categoryId', productController.getProductsByCategory);
+
+/**
+ * @swagger
+ * /api/products/search:
+ *   get:
+ *     summary: Search products by name
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Keyword to search
+ *     responses:
+ *       200:
+ *         description: Search results
+ */
+router.get('/search', productController.searchProducts);
+
+
+/**
+ * @swagger
+ * /api/products/filter:
+ *   get:
+ *     summary: Filter products by price and rating
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: priceMin
+ *         schema:
+ *           type: number
+ *       - in: query
+ *         name: priceMax
+ *         schema:
+ *           type: number
+ *       - in: query
+ *         name: rating
+ *         schema:
+ *           type: number
+ *     responses:
+ *       200:
+ *         description: Filtered products
+ */
+router.get('/filter', productController.filterProducts);
+
+
+/**
+ * @swagger
  * /api/products:
  *   post:
  *     summary: Create a product
@@ -72,7 +141,7 @@ router.get('/:id', productController.getById);
  *       201:
  *         description: Product created
  */
-router.post('/', verifyToken, requireRole(['seller']), productController.create);
+router.post('/', verifyToken, requireRole(['seller']), createProductValidator, validate, productController.create);
 
 /**
  * @swagger

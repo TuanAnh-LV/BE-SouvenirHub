@@ -3,7 +3,12 @@ const express = require('express');
 const router = express.Router();
 const paymentController = require('../controllers/payment.controller');
 const { verifyToken } = require('../middlewares/auth.middleware');
-
+const {
+    mockPayValidator,
+    processOnlinePaymentValidator,
+    createMomoPaymentValidator
+  } = require('../validators/payment.validator');
+  const { validate } = require('../middlewares/validate.middleware');
 /**
  * @swagger
  * tags:
@@ -32,7 +37,7 @@ const { verifyToken } = require('../middlewares/auth.middleware');
  *       200:
  *         description: Payment simulated
  */
-router.post('/mock', verifyToken, paymentController.mockPay);
+router.post('/mock', verifyToken, mockPayValidator, validate, paymentController.mockPay);
 
 /**
  * @swagger
@@ -60,7 +65,7 @@ router.post('/mock', verifyToken, paymentController.mockPay);
  *       200:
  *         description: Payment recorded
  */
-router.post('/online', verifyToken, paymentController.processOnlinePayment);
+router.post('/online', verifyToken, processOnlinePaymentValidator, validate, paymentController.processOnlinePayment);
 
 /**
  * @swagger
@@ -91,7 +96,7 @@ router.post('/online', verifyToken, paymentController.processOnlinePayment);
  *                   type: string
  *                   example: https://test-payment.momo.vn/gw_payment/transactionProcessor?...
  */
-router.post('/momo-create', verifyToken, paymentController.createMomoPayment);
+router.post('/momo-create', verifyToken, createMomoPaymentValidator, validate, paymentController.createMomoPayment);
 
 /**
  * @swagger
