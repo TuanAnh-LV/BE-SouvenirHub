@@ -5,11 +5,11 @@ const crypto = require('crypto');
 const axios = require('axios');
 
 const MOMO_ENDPOINT = 'https://test-payment.momo.vn/gw_payment/transactionProcessor';
-const partnerCode = process.env.MOMO_PARTNER_CODE || 'MOMO';
-const accessKey = process.env.MOMO_ACCESS_KEY || 'F8BBA842ECF85';
-const secretKey = process.env.MOMO_SECRET_KEY || 'K951B6PE1waDMi640xX08PD3vg6EkVlz';
-const redirectUrl = process.env.MOMO_REDIRECT_URL || 'https://localhost:7017/api/v1/Momo';
-const ipnUrl = process.env.MOMO_IPN_URL || 'https://localhost:7017/api/v1/MomoOrderLogicReturn';
+const partnerCode = process.env.MOMO_PARTNER_CODE ;
+const accessKey = process.env.MOMO_ACCESS_KEY ;
+const secretKey = process.env.MOMO_SECRET_KEY ;
+const redirectUrl = process.env.MOMO_REDIRECT_URL ;
+const ipnUrl = process.env.MOMO_IPN_URL ;
 const requestType = 'captureMoMoWallet';
 
 exports.mockPay = async (req, res) => {
@@ -65,11 +65,15 @@ exports.createMomoPayment = async (req, res) => {
   try {
     const { order_id } = req.body;
     const order = await Order.findById(order_id);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (!order_id) return res.status(400).json({ error: 'order_id is required' });
 
     const requestId = `${partnerCode}-${Date.now()}`;
     const orderInfo = `Thanh toán đơn hàng ${order_id}`;
     const amount = parseFloat(order.total_price.toString());
+    if (parseFloat(amount) !== parseFloat(order.total_price)) {
+      return res.status(400).end();
+    }
+    
 
     const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=&ipnUrl=${ipnUrl}&orderId=${order_id}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&redirectUrl=${redirectUrl}&requestId=${requestId}&requestType=${requestType}`;
     const signature = crypto.createHmac('sha256', secretKey).update(rawSignature).digest('hex');

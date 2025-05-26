@@ -13,3 +13,72 @@ exports.getMyShop = async (req, res) => {
   }
 };
 
+exports.createShop = async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    const existingShop = await Shop.findOne({ user_id: req.user.id });
+    if (existingShop) {
+      return res.status(400).json({ error: 'You have already registered a shop' });
+    }
+    const shop = new Shop({ user_id: req.user.id, name, description, status: 'pending' });
+    await shop.save();
+    res.status(201).json({ message: 'Shop registered and pending approval', shop });
+  } catch (err) {
+    console.error('Create shop error:', err);
+    res.status(400).json({ error: 'Failed to register shop', detail: err.message });
+  }
+};
+const cloudinary = require('cloudinary').v2;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+const streamUpload = (fileBuffer) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: 'souvenirhub/shops',
+        resource_type: 'image'
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    );
+    stream.end(fileBuffer);
+  });
+};
+exports.updateShop = async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    const shop = await Shop.findOne({ user_id: req.user.id });
+    if (!shop) return res.status(404).json({ error: 'Shop not found' });
+
+    if (name) shop.name = name;
+    if (description) shop.description = description;
+    if (req.file && req.file.buffer) {
+      const result = await streamUpload(req.file.buffer);
+      shop.logo_url = result.secure_url;
+    }
+    
+
+    await shop.save();
+    res.json({ message: 'Shop updated successfully', shop });
+  } catch (err) {
+    console.error('Update shop error:', err);
+    res.status(500).json({ error: 'Failed to update shop' });
+  }
+};
+exports.getShopById = async (req, res) => {
+  try {
+    const shop = await Shop.findById(req.params.id).populate('user_id', 'name');
+    if (!shop) return res.status(404).json({ error: 'Shop not found' });
+    res.json(shop);
+  } catch (err) {
+    console.error('Fetch shop by ID error:', err);
+    res.status(500).json({ error: 'Failed to fetch shop' });
+  }
+};
