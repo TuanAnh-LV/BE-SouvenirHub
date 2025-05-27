@@ -44,11 +44,15 @@ exports.login = async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    // 👇 Trả về đầy đủ user
+    const fullUser = await User.findById(user._id).select("-password_hash -firebase_uid");
+
+    res.json({ token, user: fullUser });
   } catch (err) {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
 
 exports.googleLogin = async (req, res) => {
     const { idToken } = req.body;
@@ -75,10 +79,8 @@ exports.googleLogin = async (req, res) => {
         { expiresIn: '7d' }
       );
   
-      res.json({
-        token,
-        user: { id: user._id, name: user.name, email: user.email, role: user.role }
-      });
+      const fullUser = await User.findById(user._id).select("-password_hash -firebase_uid");
+      res.json({ token, user: fullUser });
     } catch (err) {
       res.status(401).json({ error: 'Invalid Google token', detail: err.message });
     }

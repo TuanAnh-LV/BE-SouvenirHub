@@ -53,7 +53,7 @@ router.get('/me', verifyToken, userController.getProfile);
  *               phone:
  *                 type: string
  *                 example: "0388123456"
- *               file:
+ *               avatar:
  *                 type: string
  *                 format: binary
  *     responses:
