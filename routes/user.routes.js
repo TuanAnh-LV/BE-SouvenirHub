@@ -29,7 +29,7 @@ router.get('/me', verifyToken, userController.getProfile);
  * @swagger
  * /api/user/me:
  *   put:
- *     summary: Update user profile
+ *     summary: Cập nhật hồ sơ người dùng
  *     tags: [User]
  *     security:
  *       - bearerAuth: []
@@ -42,12 +42,27 @@ router.get('/me', verifyToken, userController.getProfile);
  *             properties:
  *               name:
  *                 type: string
- *               avatar:
+ *                 example: "Nguyễn Văn A"
+ *               gender:
+ *                 type: string
+ *                 enum: [Nam, Nữ, Khác]
+ *               birthday:
+ *                 type: string
+ *                 format: date
+ *                 example: 2000-01-01
+ *               phone:
+ *                 type: string
+ *                 example: "0388123456"
+ *               file:
  *                 type: string
  *                 format: binary
  *     responses:
  *       200:
- *         description: Profile updated
+ *         description: Cập nhật thành công
+ *       400:
+ *         description: Dữ liệu không hợp lệ
+ *       500:
+ *         description: Lỗi server
  */
 
 router.put('/me', verifyToken, upload.single('avatar'), userController.updateProfile);
