@@ -7,11 +7,12 @@ const userSchema = new mongoose.Schema({
     password_hash: { type: String, required: function () { return !this.firebase_uid; } },
     role: { type: String, enum: ['buyer', 'seller', 'admin'], default: 'buyer' },
     avatar:{ type: String},
+    phone: { type: String },
+    birthday: { type: Date },  
+    gender: { type: String, enum: ['Nam', 'Nữ', 'Khác'] },
     created_at: { type: Date, default: Date.now },
     reset_password_token: String,
     reset_password_expires: Date,
-    
-
 });
 
 module.exports = mongoose.model('User', userSchema);
