@@ -11,7 +11,7 @@ const upload = multer({ storage });
  * @swagger
  * /api/shop-applications:
  *   post:
- *     summary: Submit a business application for shop approval (with ID card images)
+ *     summary: Submit a business application for shop approval (with ID card images and logo file)
  *     tags: [ShopApplications]
  *     security:
  *       - bearerAuth: []
@@ -36,8 +36,9 @@ const upload = multer({ storage });
  *                 type: string
  *               address:
  *                 type: string
- *               logo_url:
+ *               logo_file:
  *                 type: string
+ *                 format: binary
  *               tax_id:
  *                 type: string
  *               id_card_number:
@@ -61,7 +62,8 @@ router.post(
   upload.fields([
     { name: 'id_card_front', maxCount: 1 },
     { name: 'id_card_back', maxCount: 1 },
-    { name: 'license_file', maxCount: 1 }
+    { name: 'license_file', maxCount: 1 },
+    { name: 'logo_file', maxCount: 1 } // ✅ Đã thêm dòng này
   ]),
   shopApplicationController.submitApplication
 );

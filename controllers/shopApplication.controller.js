@@ -35,7 +35,6 @@ exports.submitApplication = async (req, res) => {
       email,
       phone,
       address,
-      logo_url,
       tax_id,
       id_card_number
     } = req.body;
@@ -46,6 +45,7 @@ exports.submitApplication = async (req, res) => {
     let idCardFrontUrl = '';
     let idCardBackUrl = '';
     let licenseFileUrl = '';
+    let logoUrl = '';
 
     if (req.files?.id_card_front?.[0]) {
       const result = await streamUpload(
@@ -77,6 +77,16 @@ exports.submitApplication = async (req, res) => {
       licenseFileUrl = result.secure_url;
     }
 
+    if (req.files?.logo_file?.[0]) {
+      const result = await streamUpload(
+        req.files.logo_file[0].buffer,
+        `private_docs/${shop_id}`,
+        'logo_file',
+        'image'
+      );
+      logoUrl = result.secure_url;
+    }
+
     const app = new ShopApplication({
       shop_id,
       business_name,
@@ -85,7 +95,7 @@ exports.submitApplication = async (req, res) => {
       email,
       phone,
       address,
-      logo_url,
+      logo_url: logoUrl,
       tax_id,
       id_card_number,
       license_file_url: licenseFileUrl,
@@ -103,8 +113,6 @@ exports.submitApplication = async (req, res) => {
     res.status(500).json({ error: 'Failed to submit application' });
   }
 };
-
-
 
 exports.getApplicationByShop = async (req, res) => {
   try {
