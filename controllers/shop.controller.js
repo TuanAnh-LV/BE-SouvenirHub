@@ -76,7 +76,12 @@ exports.getShopById = async (req, res) => {
   try {
     const shop = await Shop.findById(req.params.id).populate('user_id', 'name');
     if (!shop) return res.status(404).json({ error: 'Shop not found' });
-    res.json(shop);
+
+    // Get all products of this shop
+    const Product = require('../models/product.model');
+    const products = await Product.find({ shop_id: shop._id });
+
+    res.json({ shop, products });
   } catch (err) {
     console.error('Fetch shop by ID error:', err);
     res.status(500).json({ error: 'Failed to fetch shop' });
