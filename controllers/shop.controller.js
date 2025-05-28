@@ -77,11 +77,26 @@ exports.getShopById = async (req, res) => {
     const shop = await Shop.findById(req.params.id).populate('user_id', 'name');
     if (!shop) return res.status(404).json({ error: 'Shop not found' });
 
-    // Get all products of this shop
+    // Get all products of this shop, populate fields
     const Product = require('../models/product.model');
-    const products = await Product.find({ shop_id: shop._id });
+    const ProductImage = require('../models/productImage.model');
+    const products = await Product.find({ shop_id: shop._id })
+      .populate({ path: 'category_id', select: 'name' })
+      .populate({ path: 'shop_id', select: 'name' });
 
-    res.json({ shop, products });
+    // Get all images for these products
+    const productIds = products.map(p => p._id);
+    const images = await ProductImage.find({ product_id: { $in: productIds } });
+
+    // Attach images to products, like getAll
+    const productsWithImages = products.map(product => {
+      const productImages = images
+        .filter(img => img.product_id.toString() === product._id.toString())
+        .map(img => img.url);
+      return { ...product.toObject(), images: productImages };
+    });
+
+    res.json({ shop, products: productsWithImages });
   } catch (err) {
     console.error('Fetch shop by ID error:', err);
     res.status(500).json({ error: 'Failed to fetch shop' });
