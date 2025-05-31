@@ -1,9 +1,9 @@
 // routes/shop.routes.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const Shop = require('../models/shop.model');
-const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
-const shopController = require('../controllers/shop.controller');
+const Shop = require("../models/shop.model");
+const { verifyToken, requireRole } = require("../middlewares/auth.middleware");
+const shopController = require("../controllers/shop.controller");
 
 /**
  * @swagger
@@ -38,8 +38,7 @@ const shopController = require('../controllers/shop.controller');
  *       400:
  *         description: Registration failed
  */
-router.post('/', verifyToken, shopController.createShop);
-
+router.post("/", verifyToken, shopController.createShop);
 
 /**
  * @swagger
@@ -55,9 +54,9 @@ router.post('/', verifyToken, shopController.createShop);
  *       404:
  *         description: No shop found
  */
-router.get('/me', verifyToken, shopController.getMyShop);
+router.get("/me", verifyToken, shopController.getMyShop);
 
-const upload = require('../middlewares/upload.middleware');
+const upload = require("../middlewares/upload.middleware");
 
 /**
  * @swagger
@@ -87,7 +86,12 @@ const upload = require('../middlewares/upload.middleware');
  *       404:
  *         description: Shop not found
  */
-router.put('/me', verifyToken, upload.single('logo'), shopController.updateShop);
+router.put(
+  "/me",
+  verifyToken,
+  upload.single("logo"),
+  shopController.updateShop
+);
 
 /**
  * @swagger
@@ -107,8 +111,6 @@ router.put('/me', verifyToken, upload.single('logo'), shopController.updateShop)
  *       404:
  *         description: Shop not found
  */
-router.get('/:id', shopController.getShopById);
-
-
+router.get("/:id", shopController.getShopById);
 
 module.exports = router;
