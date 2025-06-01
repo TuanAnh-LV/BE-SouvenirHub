@@ -1,4 +1,3 @@
-// controllers/review.controller.js
 const Review = require('../models/review.model');
 const OrderItem = require('../models/orderItem.model');
 const Product = require('../models/product.model');
@@ -10,7 +9,7 @@ exports.createReview = async (req, res) => {
     const userId = req.user.id;
     const userRole = req.user.role;
 
-    // If seller → check if reviewing their own product
+    // Nếu là seller → kiểm tra không được tự review sản phẩm mình
     if (userRole === 'seller') {
       const product = await Product.findById(product_id);
       const shop = await Shop.findOne({ owner: userId });
@@ -19,7 +18,7 @@ exports.createReview = async (req, res) => {
       }
     }
 
-    // Check if user has purchased the product
+    // Kiểm tra người dùng đã mua sản phẩm chưa
     const hasPurchased = await OrderItem.exists({ product_id, user_id: userId });
     if (!hasPurchased) {
       return res.status(403).json({ error: 'You can only review products you have purchased.' });
@@ -27,6 +26,16 @@ exports.createReview = async (req, res) => {
 
     const review = new Review({ product_id, rating, comment, user_id: userId });
     await review.save();
+
+    // ✅ Cập nhật điểm trung bình và số lượng đánh giá
+    const reviews = await Review.find({ product_id });
+    const average = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+
+    await Product.findByIdAndUpdate(product_id, {
+      averageRating: average,
+      reviewCount: reviews.length
+    });
+
     res.status(201).json(review);
   } catch (err) {
     console.error('Create review error:', err);

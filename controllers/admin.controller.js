@@ -160,4 +160,27 @@ exports.getAdminStats = async (req, res) => {
       res.status(500).json({ error: 'Failed to delete shop' });
     }
   };
+  exports.approveProduct = async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const product = await Product.findById(productId);
+      if (!product) return res.status(404).json({ error: 'Product not found' });
+  
+      product.status = 'onSale';
+      await product.save();
+  
+      res.json({ message: 'Product approved and set to onSale', product });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to approve product' });
+    }
+  };
+  
+  exports.getPendingProducts = async (req, res) => {
+    try {
+      const products = await Product.find({ status: 'pendingApproval' }).populate('shop_id', 'name');
+      res.json(products);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch pending products' });
+    }
+  };
   

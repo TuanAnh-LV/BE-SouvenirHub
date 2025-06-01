@@ -9,6 +9,15 @@ const productSchema = new mongoose.Schema({
   description: String,
   price: { type: mongoose.Types.Decimal128, required: true },
   stock: { type: Number, default: 0 },
+  status: {
+    type: String,
+    enum: ['pendingApproval', 'onSale', 'outOfStock', 'offSale', 'archived'],
+    default: 'pendingApproval'
+  },
+  specifications: { type: String, default: '' },
+  specialNotes: { type: String, default: '' },
+  averageRating: { type: Number, default: 0, min: 0, max: 5 },
+  reviewCount: { type: Number, default: 0 },
   created_at: { type: Date, default: Date.now }
 });
 

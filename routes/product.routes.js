@@ -131,6 +131,10 @@ router.get('/filter', productController.filterProducts);
  *                 type: string
  *               description:
  *                 type: string
+ *               specifications:
+ *                 type: string
+ *               specialNotes:
+ *                 type: string
  *               category_id:
  *                 type: string
  *               price:
@@ -167,6 +171,10 @@ router.post('/', verifyToken, requireRole(['seller']), createProductValidator, v
  *               name:
  *                 type: string
  *               description:
+ *                 type: string
+ *               specifications:
+ *                 type: string
+ *               specialNotes:
  *                 type: string
  *               price:
  *                 type: number
