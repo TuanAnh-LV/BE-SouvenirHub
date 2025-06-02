@@ -5,11 +5,29 @@ const sanitizeHtml = require('sanitize-html');
 
 exports.getAll = async (req, res) => {
   try {
-    const products = await Product.find()
+    const { name, minPrice, maxPrice } = req.body;
+    let filter = {};
+
+    if (name && name !== '') {
+      filter.name = { $regex: name, $options: 'i' };
+    }
+    if (
+      (minPrice !== undefined && minPrice !== 0) ||
+      (maxPrice !== undefined && maxPrice !== 0)
+    ) {
+      filter.price = {};
+      if (minPrice !== undefined && minPrice !== 0) filter.price.$gte = Number(minPrice);
+      if (maxPrice !== undefined && maxPrice !== 0) filter.price.$lte = Number(maxPrice);
+      if (Object.keys(filter.price).length === 0) delete filter.price;
+    }
+
+    // Log filter để kiểm tra
+    console.log('Product filter:', filter);
+
+    const products = await Product.find(filter)
       .populate({ path: 'category_id', select: 'name' })
       .populate({ path: 'shop_id', select: 'name' });
 
-    // Gộp ảnh
     const productIds = products.map(p => p._id);
     const images = await ProductImage.find({ product_id: { $in: productIds } });
 
@@ -23,7 +41,7 @@ exports.getAll = async (req, res) => {
     res.json(productsWithImages);
   } catch (err) {
     console.error('Error fetching products:', err);
-    res.status(500).json({ error: 'PRODUCT_FETCH_FAILED', message: 'Failed to fetch product' });
+    res.status(500).json({ error: 'PRODUCT_FETCH_FAILED', message: err.message });
   }
 };
 
