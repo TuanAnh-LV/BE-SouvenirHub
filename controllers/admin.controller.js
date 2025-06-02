@@ -6,7 +6,8 @@ const Product = require('../models/product.model');
 const ShippingAddress = require('../models/shippingAddress.model');
 const Shop = require('../models/shop.model');
 const { sendMail } = require('../utils/mailer');
-
+const ShopApplication = require('../models/shopApplication.model');
+const ShopImage = require('../models/shopImage.model');
 exports.getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find().populate('user_id shipping_address_id');
@@ -137,8 +138,6 @@ exports.getShopById = async (req, res) => {
 
   
   
-  
-  
 exports.updateShopStatus = async (req, res) => {
   try {
     const { status, reason } = req.body;
@@ -222,15 +221,28 @@ exports.updateShopStatus = async (req, res) => {
     }
   };
   
+  
   exports.deleteShop = async (req, res) => {
     try {
-      const deleted = await Shop.findByIdAndDelete(req.params.id);
+      const shopId = req.params.id;
+  
+      // ✅ Xoá dữ liệu liên quan trước
+      await Promise.all([
+        Product.deleteMany({ shop_id: shopId }),
+        ShopApplication.deleteMany({ shop_id: shopId }),
+        ShopImage.deleteMany({ shop_id: shopId }),
+      ]);
+  
+      const deleted = await Shop.findByIdAndDelete(shopId);
       if (!deleted) return res.status(404).json({ error: 'Shop not found' });
-      res.json({ message: 'Shop deleted' });
+  
+      res.json({ message: 'Shop and related data deleted successfully' });
     } catch (err) {
+      console.error('❌ Failed to delete shop:', err);
       res.status(500).json({ error: 'Failed to delete shop' });
     }
   };
+  
   exports.approveProduct = async (req, res) => {
     try {
       const { productId } = req.params;
