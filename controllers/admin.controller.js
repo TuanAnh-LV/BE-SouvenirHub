@@ -90,11 +90,41 @@ exports.getAdminStats = async (req, res) => {
     try {
       const shop = await Shop.findById(req.params.id).populate('user_id', 'name email');
       if (!shop) return res.status(404).json({ error: 'Shop not found' });
-      res.json(shop);
+  
+      const productCount = await Product.countDocuments({ shop_id: shop._id });
+  
+      // Lấy tất cả đơn hàng có sản phẩm thuộc shop này
+      const products = await Product.find({ shop_id: shop._id }).select('_id');
+      const productIds = products.map(p => p._id);
+  
+      const orderItems = await OrderItem.find({ product_id: { $in: productIds } });
+      const orderIds = [...new Set(orderItems.map(item => item.order_id.toString()))];
+  
+      const orders = await Order.find({ _id: { $in: orderIds } });
+  
+      const totalRevenue = orderItems.reduce((sum, item) => {
+        return sum + parseFloat(item.price.toString()) * item.quantity;
+      }, 0);
+  
+      const totalOrders = orders.length;
+      const totalCancelled = orders.filter(o => o.status === 'cancelled').length;
+  
+      res.json({
+        ...shop.toObject(),
+        address: shop.address || '',
+        productCount,
+        totalRevenue,
+        totalOrders,
+        totalCancelled,
+        rating: shop.rating || 0,
+      });
     } catch (err) {
+      console.error(err);
       res.status(500).json({ error: 'Failed to fetch shop' });
     }
   };
+  
+  
   
   exports.updateShopStatus = async (req, res) => {
     try {
