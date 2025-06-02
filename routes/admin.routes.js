@@ -11,6 +11,70 @@ const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
  *   name: Admin
  *   description: Admin order control
  */
+/**
+ * @swagger
+ * /api/admin/users:
+ *   get:
+ *     summary: Admin get all users
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   role:
+ *                     type: string
+ */
+router.get('/users', verifyToken, requireRole(['admin']), adminController.getAllUsers);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   get:
+ *     summary: Get user detail by ID
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: User detail
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 role:
+ *                   type: string
+ *       404:
+ *         description: User not found
+ */
+router.get('/users/:id', verifyToken, requireRole(['admin']), adminController.getUserById);
+
 
 /**
  * @swagger
@@ -125,6 +189,39 @@ router.get('/stats', verifyToken, requireRole(['admin']), adminController.getAdm
  */
 router.get('/pending', verifyToken, requireRole(['admin']), adminController.getAllPendingShops);
 
+router.get('/products/pending',verifyToken,requireRole(['admin']),adminController.getPendingProducts);
+  /**
+ * @swagger
+ * /api/admin/products/pending:
+ *   get:
+ *     summary: Admin gets list of products pending approval
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of pending products
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   status:
+ *                     type: string
+ *                   shop_id:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ */
 
 router.get('/shops', verifyToken, requireRole(['admin']), adminController.getAllShops);
 /**
@@ -201,6 +298,31 @@ router.put('/shops/:shopId/status', verifyToken, requireRole(['admin']), adminCo
  *         description: Shop not found
  */
 
+
+router.put('/products/:productId/approve',verifyToken,requireRole(['admin']),adminController.approveProduct);
+  /**
+ * @swagger
+ * /api/admin/products/{productId}/approve:
+ *   put:
+ *     summary: Admin approves a pending product
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: productId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID của sản phẩm cần duyệt
+ *     responses:
+ *       200:
+ *         description: Product approved
+ *       404:
+ *         description: Product not found
+ */
+
+  
 
 router.put('/shops/:id', verifyToken, requireRole(['admin']), adminController.updateShop);
 /**

@@ -1,14 +1,33 @@
 const Product = require('../models/product.model');
 const Shop = require('../models/shop.model'); 
 const ProductImage = require('../models/productImage.model');
+const sanitizeHtml = require('sanitize-html');
 
 exports.getAll = async (req, res) => {
   try {
-    const products = await Product.find()
+    const { name, minPrice, maxPrice } = req.body;
+    let filter = {};
+
+    if (name && name !== '') {
+      filter.name = { $regex: name, $options: 'i' };
+    }
+    if (
+      (minPrice !== undefined && minPrice !== 0) ||
+      (maxPrice !== undefined && maxPrice !== 0)
+    ) {
+      filter.price = {};
+      if (minPrice !== undefined && minPrice !== 0) filter.price.$gte = Number(minPrice);
+      if (maxPrice !== undefined && maxPrice !== 0) filter.price.$lte = Number(maxPrice);
+      if (Object.keys(filter.price).length === 0) delete filter.price;
+    }
+
+    // Log filter để kiểm tra
+    console.log('Product filter:', filter);
+
+    const products = await Product.find(filter)
       .populate({ path: 'category_id', select: 'name' })
       .populate({ path: 'shop_id', select: 'name' });
 
-    // Gộp ảnh
     const productIds = products.map(p => p._id);
     const images = await ProductImage.find({ product_id: { $in: productIds } });
 
@@ -22,7 +41,7 @@ exports.getAll = async (req, res) => {
     res.json(productsWithImages);
   } catch (err) {
     console.error('Error fetching products:', err);
-    res.status(500).json({ error: 'PRODUCT_FETCH_FAILED', message: 'Failed to fetch product' });
+    res.status(500).json({ error: 'PRODUCT_FETCH_FAILED', message: err.message });
   }
 };
 
@@ -86,28 +105,62 @@ exports.create = async (req, res) => {
     const shop = await Shop.findOne({ user_id: req.user.id });
     if (!shop) return res.status(400).json({ message: 'You don\'t have a shop' });
 
-    const product = new Product({ ...req.body, shop_id: shop._id });
-    await product.save();
+    const cleanDescription = sanitizeHtml(req.body.description, {
+      allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'u', 'iframe']),
+      allowedAttributes: {
+        '*': ['style', 'class', 'href', 'src', 'alt', 'title'],
+        iframe: ['src', 'allowfullscreen', 'width', 'height'],
+      }
+    });
 
+    const product = new Product({
+      ...req.body,
+      description: cleanDescription,
+      shop_id: shop._id,
+      sold: 0,
+    });
+
+    await product.save();
     res.status(201).json(product);
   } catch (err) {
+    console.error('Product create error:', err);
     res.status(400).json({ error: 'PRODUCT_CREATE_FAILED', message: 'Failed to create product' });
   }
 };
 
+
 exports.update = async (req, res) => {
   try {
+    const cleanDescription = req.body.description
+      ? sanitizeHtml(req.body.description, {
+          allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'u', 'iframe']),
+          allowedAttributes: {
+            '*': ['style', 'class', 'href', 'src', 'alt', 'title'],
+            iframe: ['src', 'allowfullscreen', 'width', 'height'],
+          }
+        })
+      : undefined;
+
+    const updateData = {
+      ...req.body,
+      ...(cleanDescription && { description: cleanDescription })
+    };
+
     const updated = await Product.findOneAndUpdate(
       { _id: req.params.id, shop_id: req.user.id },
-      req.body,
+      updateData,
       { new: true }
     );
+
     if (!updated) return res.status(404).json({ error: 'Product not found or unauthorized' });
+
     res.json(updated);
   } catch (err) {
+    console.error('Product update error:', err);
     res.status(400).json({ error: 'PRODUCT_UPDATE_FAILED', message: 'Failed to update product' });
   }
 };
+
 
 exports.remove = async (req, res) => {
   try {

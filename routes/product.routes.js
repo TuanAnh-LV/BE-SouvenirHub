@@ -23,8 +23,46 @@ const { validate } = require('../middlewares/validate.middleware');
  *     responses:
  *       200:
  *         description: List of products
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   description:
+ *                     type: string
+ *                   price:
+ *                     type: number
+ *                   stock:
+ *                     type: integer
+ *                   sold:
+ *                     type: integer
+ *                     example: 12
+ *                   images:
+ *                     type: array
+ *                     items:
+ *                       type: string
+ *                   category_id:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                   shop_id:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       name:
+ *                         type: string
  */
-router.get('/', productController.getAll);
+router.post('/', productController.getAll);
 
 /**
  * @swagger
@@ -41,6 +79,42 @@ router.get('/', productController.getAll);
  *     responses:
  *       200:
  *         description: Product details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 description:
+ *                   type: string
+ *                 price:
+ *                   type: number
+ *                 stock:
+ *                   type: integer
+ *                 sold:
+ *                   type: integer
+ *                   example: 5
+ *                 images:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                 category_id:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                 shop_id:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     name:
+ *                       type: string
  */
 router.get('/:id', productController.getById);
 
@@ -131,12 +205,17 @@ router.get('/filter', productController.filterProducts);
  *                 type: string
  *               description:
  *                 type: string
+ *               specifications:
+ *                 type: string
+ *               specialNotes:
+ *                 type: string
  *               category_id:
  *                 type: string
  *               price:
  *                 type: number
  *               stock:
  *                 type: integer
+ *
  *     responses:
  *       201:
  *         description: Product created
@@ -167,6 +246,10 @@ router.post('/', verifyToken, requireRole(['seller']), createProductValidator, v
  *               name:
  *                 type: string
  *               description:
+ *                 type: string
+ *               specifications:
+ *                 type: string
+ *               specialNotes:
  *                 type: string
  *               price:
  *                 type: number
