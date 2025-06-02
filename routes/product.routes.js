@@ -16,10 +16,23 @@ const { validate } = require('../middlewares/validate.middleware');
 
 /**
  * @swagger
- * /api/products:
- *   get:
+ * /api/products/getAll:
+ *   post:
  *     summary: Get all products
  *     tags: [Products]
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               minPrice:
+ *                 type: integer
+ *               maxPrice:
+ *                 type: integer
  *     responses:
  *       200:
  *         description: List of products
@@ -62,7 +75,7 @@ const { validate } = require('../middlewares/validate.middleware');
  *                       name:
  *                         type: string
  */
-router.get('/', productController.getAll);
+router.post('/getAll', productController.getAll);
 
 /**
  * @swagger
