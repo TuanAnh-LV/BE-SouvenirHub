@@ -116,7 +116,8 @@ exports.create = async (req, res) => {
     const product = new Product({
       ...req.body,
       description: cleanDescription,
-      shop_id: shop._id
+      shop_id: shop._id,
+      sold: 0,
     });
 
     await product.save();
