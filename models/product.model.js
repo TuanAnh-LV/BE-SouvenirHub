@@ -18,6 +18,10 @@ const productSchema = new mongoose.Schema({
   specialNotes: { type: String, default: '' },
   averageRating: { type: Number, default: 0, min: 0, max: 5 },
   reviewCount: { type: Number, default: 0 },
+  sold: {
+    type: Number,
+    default: 0
+  },
   created_at: { type: Date, default: Date.now }
 });
 

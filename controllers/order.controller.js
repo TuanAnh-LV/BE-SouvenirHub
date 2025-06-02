@@ -39,7 +39,13 @@ exports.createOrder = async (req, res) => {
 
     for (const item of orderItems) {
       await new OrderItem({ ...item, order_id: order._id }).save();
+    
+  
+      await Product.findByIdAndUpdate(item.product_id, {
+        $inc: { sold: item.quantity }
+      });
     }
+    
 
     res.status(201).json({ message: 'Order placed successfully', order_id: order._id });
   } catch (err) {
@@ -82,12 +88,13 @@ exports.cancelOrder = async (req, res) => {
     order.status = 'cancelled';
     await order.save();
 
-    // Hoàn trả lại số lượng hàng vào kho
+    // Hoàn lại stock và giảm sold
     const orderItems = await OrderItem.find({ order_id: order._id });
     for (const item of orderItems) {
       const product = await Product.findById(item.product_id);
       if (product) {
         product.stock += item.quantity;
+        product.sold = Math.max(0, (product.sold || 0) - item.quantity);
         await product.save();
       }
     }
@@ -98,6 +105,7 @@ exports.cancelOrder = async (req, res) => {
     res.status(500).json({ error: 'Failed to cancel order' });
   }
 };
+
 
 // Cập nhật trạng thái đơn hàng (dành cho admin hoặc xử lý đơn hàng)
 exports.updateOrderStatus = async (req, res) => {
