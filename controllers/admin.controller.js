@@ -139,62 +139,78 @@ exports.getShopById = async (req, res) => {
   
   
   
-  exports.updateShopStatus = async (req, res) => {
-    try {
-      const { status, reason } = req.body;
-      const { shopId } = req.params;
-  
-      if (!['approved', 'rejected', 'pending'].includes(status)) {
-        return res.status(400).json({ error: 'Invalid status value' });
-      }
-  
-      const shop = await Shop.findById(shopId).populate('user_id', 'email name role');
-      if (!shop) return res.status(404).json({ error: 'Shop not found' });
-  
-      shop.status = status;
-      await shop.save();
-  
-      // Nếu duyệt → nâng role seller
-      if (status === 'approved') {
-        const user = await User.findById(shop.user_id._id);
-        if (user.role === 'buyer') {
-          user.role = 'seller';
-          await user.save();
-        }
-      }
-  
-      // Gửi email theo trạng thái
-      if (shop.user_id?.email) {
-        let subject = '', html = '';
-  
-        if (status === 'approved') {
-          subject = 'Đơn đăng ký cửa hàng đã được duyệt';
-          html = `
-            <p>Chào ${shop.user_id.name || 'bạn'},</p>
-            <p>Đơn đăng ký cửa hàng <strong>${shop.name}</strong> đã được <b>duyệt</b>.</p>
-            <p>Bạn có thể bắt đầu sử dụng hệ thống ngay bây giờ.</p>
-            <p>— SouvenirHub</p>
-          `;
-        } else if (status === 'rejected') {
-          subject = 'Đơn đăng ký cửa hàng bị từ chối';
-          html = `
-            <p>Chào ${shop.user_id.name || 'bạn'},</p>
-            <p>Đơn đăng ký cửa hàng <strong>${shop.name}</strong> đã bị <b>từ chối</b>.</p>
-            <p>Lý do: ${reason || '(không có lý do cụ thể)'}</p>
-            <p>Vui lòng kiểm tra lại thông tin và nộp lại nếu cần.</p>
-            <p>— SouvenirHub</p>
-          `;
-        }
-  
-        await sendMail({ to: shop.user_id.email, subject, html });
-      }
-  
-      res.json({ message: 'Shop status updated', shop });
-    } catch (err) {
-      console.error('Update shop status error:', err);
-      res.status(500).json({ error: 'Failed to update shop status' });
+exports.updateShopStatus = async (req, res) => {
+  try {
+    const { status, reason } = req.body;
+    const { shopId } = req.params;
+
+    if (!['approved', 'rejected', 'pending'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status value' });
     }
-  };
+
+    const shop = await Shop.findById(shopId).populate('user_id', 'email name role');
+    if (!shop) return res.status(404).json({ error: 'Shop not found' });
+
+    shop.status = status;
+
+    if (status === 'approved') {
+      const user = await User.findById(shop.user_id._id);
+      if (user.role === 'buyer') {
+        user.role = 'seller';
+        await user.save();
+      }
+
+      const ShopApplication = require('../models/shopApplication.model');
+      const application = await ShopApplication.findOne({ shop_id: shop._id });
+      if (application) {
+        // ✅ Chỉ cập nhật nếu hiện tại chưa có dữ liệu
+        if (!shop.logo_url && application.logo_file) {
+          shop.logo_url = application.logo_file;
+        }
+        if (!shop.address && application.address) {
+          shop.address = application.address;
+        }
+        if (!shop.name && application.business_name) {
+          shop.name = application.business_name;
+        }
+      }
+    }
+
+    await shop.save();
+
+    if (shop.user_id?.email) {
+      let subject = '', html = '';
+
+      if (status === 'approved') {
+        subject = 'Đơn đăng ký cửa hàng đã được duyệt';
+        html = `
+          <p>Chào ${shop.user_id.name || 'bạn'},</p>
+          <p>Đơn đăng ký cửa hàng <strong>${shop.name}</strong> đã được <b>duyệt</b>.</p>
+          <p>Bạn có thể bắt đầu sử dụng hệ thống ngay bây giờ.</p>
+          <p>— SouvenirHub</p>
+        `;
+      } else if (status === 'rejected') {
+        subject = 'Đơn đăng ký cửa hàng bị từ chối';
+        html = `
+          <p>Chào ${shop.user_id.name || 'bạn'},</p>
+          <p>Đơn đăng ký cửa hàng <strong>${shop.name}</strong> đã bị <b>từ chối</b>.</p>
+          <p>Lý do: ${reason || '(không có lý do cụ thể)'}</p>
+          <p>Vui lòng kiểm tra lại thông tin và nộp lại nếu cần.</p>
+          <p>— SouvenirHub</p>
+        `;
+      }
+
+      await sendMail({ to: shop.user_id.email, subject, html });
+    }
+
+    res.json({ message: 'Shop status updated', shop });
+  } catch (err) {
+    console.error('Update shop status error:', err);
+    res.status(500).json({ error: 'Failed to update shop status' });
+  }
+};
+
+
   
   exports.updateShop = async (req, res) => {
     try {
