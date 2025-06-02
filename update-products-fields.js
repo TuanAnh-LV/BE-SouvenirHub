@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Product = require('./models/product.model'); // Đảm bảo đường dẫn đúng
 
-const MONGO_URI = 'mongodb+srv://souvenirhub:Souvenir123@cluster0.ypd2gmk.mongodb.net/souvenirhub?retryWrites=true&w=majority&appName=Cluster0';
+const MONGO_URI = '';
 
 (async () => {
   try {
