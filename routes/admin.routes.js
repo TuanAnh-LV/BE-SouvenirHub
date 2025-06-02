@@ -223,7 +223,30 @@ router.get('/products/pending',verifyToken,requireRole(['admin']),adminControlle
  *                         type: string
  */
 
-router.get('/shops', verifyToken, requireRole(['admin']), adminController.getAllShops);
+router.get('/products/:id', verifyToken, requireRole(['admin']), adminController.getProductById);
+/**
+ * @swagger
+ * /api/admin/products/{id}:
+ *   get:
+ *     summary: Lấy chi tiết sản phẩm theo ID
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Product detail
+ *       404:
+ *         description: Product not found
+ */
+
+
+router.get('/shops', verifyToken, adminController.getAllShops);
 /**
  * @swagger
  * /api/admin/shops:
@@ -322,7 +345,36 @@ router.put('/products/:productId/approve',verifyToken,requireRole(['admin']),adm
  *         description: Product not found
  */
 
-  
+  router.put("/products/:productId/reject",verifyToken,requireRole(["admin"]),adminController.rejectProduct);
+  /**
+ * @swagger
+ * /api/admin/products/{productId}/reject:
+ *   put:
+ *     summary: Admin từ chối sản phẩm
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: productId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 example: Hình ảnh không rõ ràng
+ *     responses:
+ *       200:
+ *         description: Product rejected
+ */
+   
 
 router.put('/shops/:id', verifyToken, requireRole(['admin']), adminController.updateShop);
 /**

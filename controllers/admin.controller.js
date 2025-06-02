@@ -301,6 +301,27 @@ exports.updateShopStatus = async (req, res) => {
       res.status(500).json({ error: 'Failed to fetch pending products' });
     }
   };
+  exports.getProductById = async (req, res) => {
+    try {
+      const product = await Product.findById(req.params.id)
+        .populate("shop_id", "name")
+        .lean();
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+  
+      // Nếu bạn có model productImage => lấy ảnh
+      const ProductImage = require("../models/productImage.model");
+      const images = await ProductImage.find({ product_id: product._id });
+      product.images = images.map((img) => img.url);
+  
+      res.json(product);
+    } catch (err) {
+      console.error("Get product by ID error:", err);
+      res.status(500).json({ error: "Failed to get product detail" });
+    }
+  };
+  
   exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find().select('-password'); 
@@ -316,5 +337,40 @@ exports.getUserById = async (req, res) => {
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch user' });
+  }
+};
+
+exports.rejectProduct = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { reason } = req.body;
+
+    const product = await Product.findById(productId).populate('shop_id');
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+
+    product.status = 'archived';
+    await product.save();
+
+    const shop = await Shop.findById(product.shop_id._id).populate('user_id');
+    const user = shop?.user_id;
+
+    if (user?.email) {
+      await sendMail({
+        to: user.email,
+        subject: "Sản phẩm bị từ chối duyệt",
+        html: `
+          <p>Chào ${user.name || "bạn"},</p>
+          <p>Sản phẩm <strong>${product.name}</strong> đã bị <b>từ chối duyệt</b>.</p>
+          <p><b>Lý do:</b> ${reason || "(không rõ)"}</p>
+          <p>Vui lòng kiểm tra và cập nhật lại sản phẩm nếu cần.</p>
+          <p>— SouvenirHub</p>
+        `,
+      });
+    }
+
+    res.json({ message: "Product rejected", product });
+  } catch (err) {
+    console.error("Reject product error:", err);
+    res.status(500).json({ error: "Failed to reject product" });
   }
 };
