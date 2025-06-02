@@ -113,6 +113,7 @@ exports.getAdminStats = async (req, res) => {
         ...shop.toObject(),
         address: shop.address || '',
         productCount,
+        products,
         totalRevenue,
         totalOrders,
         totalCancelled,
