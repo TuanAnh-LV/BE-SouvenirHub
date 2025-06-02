@@ -28,7 +28,7 @@ exports.mockPay = async (req, res) => {
 
     await payment.save();
 
-    order.status = 'done';
+    order.status = 'processing';
     await order.save();
 
     res.json({ message: 'Payment completed (COD)', payment });

@@ -247,8 +247,6 @@ exports.updateShopStatus = async (req, res) => {
   }
 };
 
-
-  
   exports.updateShop = async (req, res) => {
     try {
       const updated = await Shop.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -258,8 +256,7 @@ exports.updateShopStatus = async (req, res) => {
       res.status(500).json({ error: 'Failed to update shop' });
     }
   };
-  
-  
+    
   exports.deleteShop = async (req, res) => {
     try {
       const shopId = req.params.id;
