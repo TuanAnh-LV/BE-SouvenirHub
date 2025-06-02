@@ -86,46 +86,55 @@ exports.getAdminStats = async (req, res) => {
   };
   
   
-  exports.getShopById = async (req, res) => {
-    try {
-      const shop = await Shop.findById(req.params.id).populate('user_id', 'name email');
-      if (!shop) return res.status(404).json({ error: 'Shop not found' });
-  
-      // Danh sách sản phẩm
-      const products = await Product.find({ shop_id: shop._id });
-  
-      // Tính productCount và revenue từ sản phẩm
-      const productCount = products.length;
-      const productIds = products.map(p => p._id);
-  
-      // Tính revenue từ các sản phẩm của shop
-      const orderItems = await OrderItem.find({ product_id: { $in: productIds } });
-      const orderIds = [...new Set(orderItems.map(item => item.order_id.toString()))];
-      const orders = await Order.find({ _id: { $in: orderIds } });
-  
-      const totalRevenue = orderItems.reduce(
-        (sum, item) => sum + parseFloat(item.price.toString()) * item.quantity,
-        0
-      );
-  
-      const totalOrders = orders.length;
-      const totalCancelled = orders.filter(o => o.status === 'cancelled').length;
-  
-      res.json({
-        ...shop.toObject(),
-        address: shop.address || '',
-        productCount,
-        products, 
-        totalRevenue,
-        totalOrders,
-        totalCancelled,
-        rating: shop.rating || 0,
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'Failed to fetch shop' });
-    }
-  };
+  const ProductImage = require('../models/productImage.model'); // nhớ import nếu chưa có
+
+exports.getShopById = async (req, res) => {
+  try {
+    const shop = await Shop.findById(req.params.id).populate('user_id', 'name email');
+    if (!shop) return res.status(404).json({ error: 'Shop not found' });
+
+    // Lấy danh sách sản phẩm
+    const products = await Product.find({ shop_id: shop._id });
+
+    const productIds = products.map(p => p._id);
+    const images = await ProductImage.find({ product_id: { $in: productIds } });
+
+    // Gộp ảnh vào từng product
+    const productsWithImages = products.map(product => {
+      const productImages = images
+        .filter(img => img.product_id.toString() === product._id.toString())
+        .map(img => img.url);
+      return { ...product.toObject(), images: productImages };
+    });
+
+    const orderItems = await OrderItem.find({ product_id: { $in: productIds } });
+    const orderIds = [...new Set(orderItems.map(item => item.order_id.toString()))];
+    const orders = await Order.find({ _id: { $in: orderIds } });
+
+    const totalRevenue = orderItems.reduce(
+      (sum, item) => sum + parseFloat(item.price.toString()) * item.quantity,
+      0
+    );
+
+    const totalOrders = orders.length;
+    const totalCancelled = orders.filter(o => o.status === 'cancelled').length;
+
+    res.json({
+      ...shop.toObject(),
+      address: shop.address || '',
+      productCount: products.length,
+      products: productsWithImages, 
+      totalRevenue,
+      totalOrders,
+      totalCancelled,
+      rating: shop.rating || 0,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch shop' });
+  }
+};
+
   
   
   
