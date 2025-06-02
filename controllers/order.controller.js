@@ -58,34 +58,43 @@ exports.createOrder = async (req, res) => {
 
 exports.getMyOrders = async (req, res) => {
   try {
+    const { name } = req.body; // lấy chuỗi cần tìm
+
     const orders = await Order.find({ user_id: req.user.id });
-    res.json(orders);
+
+    const result = await Promise.all(
+      orders.map(async (order) => {
+        const items = await OrderItem.find({ order_id: order._id }).populate({
+          path: "product_id",
+          select: "name",
+        });
+
+        // Lọc items nếu có truyền name trong body
+        const matchedItems = name
+          ? items.filter((item) =>
+              item.product_id.name.toLowerCase().includes(name.toLowerCase())
+            )
+          : items;
+
+        // Nếu không khớp sản phẩm nào thì bỏ qua order đó
+        if (name && matchedItems.length === 0) return null;
+
+        return {
+          ...order.toObject(),
+          products: matchedItems.map((item) => item.product_id.name),
+        };
+      })
+    );
+
+    // Loại bỏ các phần tử null (do không khớp sản phẩm)
+    const filteredResult = result.filter((order) => order !== null);
+
+    res.json(filteredResult);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Failed to fetch orders" });
   }
 };
-
-// exports.getMyOrders = async (req, res) => {
-//   try {
-//     const { name } = req.body;
-
-//     let orders = await Order.find({ user_id: req.user.id });
-
-//     if (name) {
-//       // Lọc các đơn hàng có chứa product với tên khớp
-//       orders = orders.filter((order) =>
-//         order.products.some((product) =>
-//           product.name.toLowerCase().includes(name.toLowerCase())
-//         )
-//       );
-//     }
-
-//     res.json(orders);
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ error: "Failed to fetch orders" });
-//   }
-// };
 
 exports.getOrderById = async (req, res) => {
   try {

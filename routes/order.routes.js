@@ -52,19 +52,49 @@ router.post(
   orderController.createOrder
 );
 
+// /**
+//  * @swagger
+//  * /api/orders:
+//  *   post:
+//  *     summary: Get current user's orders
+//  *     tags: [Orders]
+//  *     security:
+//  *       - bearerAuth: []
+//  *     responses:
+//  *       200:
+//  *         description: List of orders
+//  */
+
 /**
  * @swagger
  * /api/orders:
  *   post:
- *     summary: Get current user's orders
+ *     summary: Get current user's orders (filter by product name optionally)
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Product name to filter orders
+ *                 example: cup
  *     responses:
  *       200:
  *         description: List of orders
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
  */
-router.get("/", verifyToken, orderController.getMyOrders);
+router.post("/get", verifyToken, orderController.getMyOrders);
 
 /**
  * @swagger
