@@ -20,16 +20,12 @@ const { validate } = require('../middlewares/validate.middleware');
  *   post:
  *     summary: Get all products
  *     tags: [Products]
- * *     requestBody:
+ *     requestBody:
  *       required: false
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - name
- *               - price
- *               - category_id
  *             properties:
  *               name:
  *                 type: string
