@@ -91,20 +91,22 @@ exports.getAdminStats = async (req, res) => {
       const shop = await Shop.findById(req.params.id).populate('user_id', 'name email');
       if (!shop) return res.status(404).json({ error: 'Shop not found' });
   
-      const productCount = await Product.countDocuments({ shop_id: shop._id });
+      // Danh sách sản phẩm
+      const products = await Product.find({ shop_id: shop._id });
   
-      // Lấy tất cả đơn hàng có sản phẩm thuộc shop này
-      const products = await Product.find({ shop_id: shop._id }).select('_id');
+      // Tính productCount và revenue từ sản phẩm
+      const productCount = products.length;
       const productIds = products.map(p => p._id);
   
+      // Tính revenue từ các sản phẩm của shop
       const orderItems = await OrderItem.find({ product_id: { $in: productIds } });
       const orderIds = [...new Set(orderItems.map(item => item.order_id.toString()))];
-  
       const orders = await Order.find({ _id: { $in: orderIds } });
   
-      const totalRevenue = orderItems.reduce((sum, item) => {
-        return sum + parseFloat(item.price.toString()) * item.quantity;
-      }, 0);
+      const totalRevenue = orderItems.reduce(
+        (sum, item) => sum + parseFloat(item.price.toString()) * item.quantity,
+        0
+      );
   
       const totalOrders = orders.length;
       const totalCancelled = orders.filter(o => o.status === 'cancelled').length;
@@ -113,7 +115,7 @@ exports.getAdminStats = async (req, res) => {
         ...shop.toObject(),
         address: shop.address || '',
         productCount,
-        products,
+        products, 
         totalRevenue,
         totalOrders,
         totalCancelled,
@@ -124,6 +126,7 @@ exports.getAdminStats = async (req, res) => {
       res.status(500).json({ error: 'Failed to fetch shop' });
     }
   };
+  
   
   
   
