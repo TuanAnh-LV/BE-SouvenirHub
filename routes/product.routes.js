@@ -24,7 +24,7 @@ const { validate } = require('../middlewares/validate.middleware');
  *       200:
  *         description: List of products
  */
-router.get('/', productController.getAll);
+router.post('/', productController.getAll);
 
 /**
  * @swagger
