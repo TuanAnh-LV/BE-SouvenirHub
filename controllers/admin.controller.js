@@ -104,6 +104,8 @@ exports.getAllShops = async (req, res) => {
 
 const ProductImage = require("../models/productImage.model"); // nhớ import nếu chưa có
 
+const moment = require("moment"); // thêm nếu bạn chưa có
+
 exports.getShopById = async (req, res) => {
   try {
     const shop = await Shop.findById(req.params.id).populate(
@@ -112,13 +114,10 @@ exports.getShopById = async (req, res) => {
     );
     if (!shop) return res.status(404).json({ error: "Shop not found" });
 
-    // Lấy danh sách sản phẩm
     const products = await Product.find({ shop_id: shop._id });
-
     const productIds = products.map((p) => p._id);
-    const images = await ProductImage.find({ product_id: { $in: productIds } });
 
-    // Gộp ảnh vào từng product
+    const images = await ProductImage.find({ product_id: { $in: productIds } });
     const productsWithImages = products.map((product) => {
       const productImages = images
         .filter((img) => img.product_id.toString() === product._id.toString())
@@ -134,15 +133,62 @@ exports.getShopById = async (req, res) => {
     ];
     const orders = await Order.find({ _id: { $in: orderIds } });
 
-    const totalRevenue = orderItems.reduce(
-      (sum, item) => sum + parseFloat(item.price.toString()) * item.quantity,
-      0
+    const completedOrders = orders.filter(
+      (order) => order.status === "completed"
+    );
+    const completedOrderIds = new Set(
+      completedOrders.map((o) => o._id.toString())
     );
 
-    const totalOrders = orders.length;
+    const totalRevenue = orderItems.reduce((sum, item) => {
+      if (completedOrderIds.has(item.order_id.toString())) {
+        return sum + parseFloat(item.price.toString()) * item.quantity;
+      }
+      return sum;
+    }, 0);
+
+    const totalOrders = completedOrders.length;
     const totalCancelled = orders.filter(
       (o) => o.status === "cancelled"
     ).length;
+
+    // 🔢 1. Doanh thu theo tháng
+    const revenueByMonth = {};
+    for (const order of completedOrders) {
+      const monthKey = moment(order.created_at).format("YYYY-MM");
+      revenueByMonth[monthKey] = revenueByMonth[monthKey] || 0;
+      const relatedItems = orderItems.filter(
+        (item) => item.order_id.toString() === order._id.toString()
+      );
+      for (const item of relatedItems) {
+        revenueByMonth[monthKey] +=
+          parseFloat(item.price.toString()) * item.quantity;
+      }
+    }
+
+    // 🔢 2. Sản phẩm bán chạy nhất
+    const productSales = {};
+    for (const item of orderItems) {
+      if (completedOrderIds.has(item.order_id.toString())) {
+        const pid = item.product_id.toString();
+        productSales[pid] = (productSales[pid] || 0) + item.quantity;
+      }
+    }
+
+    const topProducts = Object.entries(productSales)
+      .sort((a, b) => b[1] - a[1]) // sort by quantity sold
+      .slice(0, 5) // top 5
+      .map(([productId, quantity]) => {
+        const product = products.find((p) => p._id.toString() === productId);
+        return product
+          ? {
+              product_id: productId,
+              name: product.name,
+              quantity_sold: quantity,
+            }
+          : null;
+      })
+      .filter(Boolean);
 
     res.json({
       ...shop.toObject(),
@@ -152,10 +198,12 @@ exports.getShopById = async (req, res) => {
       totalRevenue,
       totalOrders,
       totalCancelled,
+      revenueByMonth,
+      topProducts,
       rating: shop.rating || 0,
     });
   } catch (err) {
-    console.error(err);
+    console.error(" Failed to fetch shop by ID:", err);
     res.status(500).json({ error: "Failed to fetch shop" });
   }
 };

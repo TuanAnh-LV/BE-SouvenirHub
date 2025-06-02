@@ -6,7 +6,6 @@ const Product = require("../models/product.model");
 exports.createOrder = async (req, res) => {
   try {
     const { items, shipping_address_id } = req.body; // items: [{ product_id, quantity }]
-
     let total_price = 0;
     const orderItems = [];
 
@@ -41,10 +40,6 @@ exports.createOrder = async (req, res) => {
 
     for (const item of orderItems) {
       await new OrderItem({ ...item, order_id: order._id }).save();
-
-      await Product.findByIdAndUpdate(item.product_id, {
-        $inc: { sold: item.quantity },
-      });
     }
 
     res
@@ -170,6 +165,16 @@ exports.updateOrderStatus = async (req, res) => {
 
     order.status = status;
     await order.save();
+
+    // 👉 Chỉ tăng sold khi đơn hoàn thành
+    if (status === "completed") {
+      const orderItems = await OrderItem.find({ order_id: order._id });
+      for (const item of orderItems) {
+        await Product.findByIdAndUpdate(item.product_id, {
+          $inc: { sold: item.quantity },
+        });
+      }
+    }
 
     res.json({ message: "Order status updated", order });
   } catch (err) {

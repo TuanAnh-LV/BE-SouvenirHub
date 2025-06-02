@@ -1,24 +1,37 @@
 const mongoose = require('mongoose');
-const Product = require('./models/product.model');
-const OrderItem = require('./models/orderItem.model');
+const Product = require('./models/product.model'); // Đảm bảo đường dẫn đúng
 
-const MONGO_URI = 'mongodb+srv://souvenirhub:Souvenir123@cluster0.ypd2gmk.mongodb.net/souvenirhub?retryWrites=true&w=majority&appName=Cluster0'; // Thay URI của bạn
+const MONGO_URI = '';
 
 (async () => {
   try {
     await mongoose.connect(MONGO_URI);
-    console.log('✅ Connected to MongoDB');
+    console.log('✅ MongoDB connected');
 
-    const updated = await Product.updateMany(
-      { sold: { $exists: false } },
-      { $set: { sold: 0 } }
+    const result = await Product.updateMany(
+      {
+        $or: [
+          { averageRating: { $exists: false } },
+          { reviewCount: { $exists: false } },
+          { specialNotes: { $exists: false } },
+          { specifications: { $exists: false } }
+        ]
+      },
+      {
+        $set: {
+          status: 'onSale',
+          averageRating: 0,
+          reviewCount: 0,
+          specialNotes: '',
+          specifications: ''
+        }
+      }
     );
-    
-    console.log(`✅ Synchronized ${updated.modifiedCount} products with sold = 0`);
-    
-    process.exit(0);
+
+    console.log(`✅ Đã cập nhật ${result.modifiedCount} sản phẩm.`);
   } catch (err) {
-    console.error('❌ Failed to sync sold:', err);
-    process.exit(1);
+    console.error('❌ Lỗi khi cập nhật:', err);
+  } finally {
+    await mongoose.disconnect();
   }
 })();
