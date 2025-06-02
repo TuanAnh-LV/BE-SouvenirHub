@@ -7,6 +7,7 @@ const shopSchema = new mongoose.Schema({
   rating: { type: Number, default: 0 },
   status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   logo_url: String,
+  address: { type: String },
   created_at: { type: Date, default: Date.now }
 });
 

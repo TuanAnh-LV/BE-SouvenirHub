@@ -11,6 +11,70 @@ const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
  *   name: Admin
  *   description: Admin order control
  */
+/**
+ * @swagger
+ * /api/admin/users:
+ *   get:
+ *     summary: Admin get all users
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   role:
+ *                     type: string
+ */
+router.get('/users', verifyToken, requireRole(['admin']), adminController.getAllUsers);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   get:
+ *     summary: Get user detail by ID
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: User detail
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 role:
+ *                   type: string
+ *       404:
+ *         description: User not found
+ */
+router.get('/users/:id', verifyToken, requireRole(['admin']), adminController.getUserById);
+
 
 /**
  * @swagger
@@ -158,7 +222,6 @@ router.get('/products/pending',verifyToken,requireRole(['admin']),adminControlle
  *                       name:
  *                         type: string
  */
-
 
 router.get('/shops', verifyToken, requireRole(['admin']), adminController.getAllShops);
 /**
