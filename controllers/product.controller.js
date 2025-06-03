@@ -116,8 +116,8 @@ exports.getAll = async (req, res) => {
         reviewCount: plain.reviewCount,
         created_at: plain.created_at,
 
-        category_id: plain.category_id || plain.category || null,
-        shop_id: plain.shop_id || plain.shop || null,
+        category_id: plain.category || plain.category_id || null,
+        shop_id: plain.shop || plain.shop_id || null,
         images: productImages,
       };
     });
