@@ -3,7 +3,11 @@ const mongoose = require('mongoose');
 const orderSchema = new mongoose.Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   shipping_address_id: { type: mongoose.Schema.Types.ObjectId, ref: 'ShippingAddress', required: true },
-  status: { type: String, enum: ['pending', 'shipped', 'done', 'cancelled'], default: 'pending' },
+  status: {
+    type: String,
+    enum: ['pending', 'processing', 'shipped', 'completed', 'cancelled'],
+    default: 'pending'
+  },  
   total_price: { type: mongoose.Types.Decimal128 },
   created_at: { type: Date, default: Date.now }
 });

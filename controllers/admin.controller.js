@@ -89,18 +89,17 @@ exports.getAdminStats = async (req, res) => {
   
   const ProductImage = require('../models/productImage.model'); // nhớ import nếu chưa có
 
+  const moment = require('moment'); // thêm nếu bạn chưa có
+
 exports.getShopById = async (req, res) => {
   try {
     const shop = await Shop.findById(req.params.id).populate('user_id', 'name email');
     if (!shop) return res.status(404).json({ error: 'Shop not found' });
 
-    // Lấy danh sách sản phẩm
     const products = await Product.find({ shop_id: shop._id });
-
     const productIds = products.map(p => p._id);
-    const images = await ProductImage.find({ product_id: { $in: productIds } });
 
-    // Gộp ảnh vào từng product
+    const images = await ProductImage.find({ product_id: { $in: productIds } });
     const productsWithImages = products.map(product => {
       const productImages = images
         .filter(img => img.product_id.toString() === product._id.toString())
@@ -112,26 +111,65 @@ exports.getShopById = async (req, res) => {
     const orderIds = [...new Set(orderItems.map(item => item.order_id.toString()))];
     const orders = await Order.find({ _id: { $in: orderIds } });
 
-    const totalRevenue = orderItems.reduce(
-      (sum, item) => sum + parseFloat(item.price.toString()) * item.quantity,
-      0
-    );
+    const completedOrders = orders.filter(order => order.status === 'completed');
+    const completedOrderIds = new Set(completedOrders.map(o => o._id.toString()));
 
-    const totalOrders = orders.length;
+    const totalRevenue = orderItems.reduce((sum, item) => {
+      if (completedOrderIds.has(item.order_id.toString())) {
+        return sum + parseFloat(item.price.toString()) * item.quantity;
+      }
+      return sum;
+    }, 0);
+
+    const totalOrders = completedOrders.length;
     const totalCancelled = orders.filter(o => o.status === 'cancelled').length;
+
+    // 🔢 1. Doanh thu theo tháng
+    const revenueByMonth = {};
+    for (const order of completedOrders) {
+      const monthKey = moment(order.created_at).format("YYYY-MM");
+      revenueByMonth[monthKey] = revenueByMonth[monthKey] || 0;
+      const relatedItems = orderItems.filter(item => item.order_id.toString() === order._id.toString());
+      for (const item of relatedItems) {
+        revenueByMonth[monthKey] += parseFloat(item.price.toString()) * item.quantity;
+      }
+    }
+
+    // 🔢 2. Sản phẩm bán chạy nhất
+    const productSales = {};
+    for (const item of orderItems) {
+      if (completedOrderIds.has(item.order_id.toString())) {
+        const pid = item.product_id.toString();
+        productSales[pid] = (productSales[pid] || 0) + item.quantity;
+      }
+    }
+
+    const topProducts = Object.entries(productSales)
+      .sort((a, b) => b[1] - a[1]) // sort by quantity sold
+      .slice(0, 5) // top 5
+      .map(([productId, quantity]) => {
+        const product = products.find(p => p._id.toString() === productId);
+        return product ? {
+          product_id: productId,
+          name: product.name,
+          quantity_sold: quantity
+        } : null;
+      }).filter(Boolean);
 
     res.json({
       ...shop.toObject(),
       address: shop.address || '',
       productCount: products.length,
-      products: productsWithImages, 
+      products: productsWithImages,
       totalRevenue,
       totalOrders,
       totalCancelled,
+      revenueByMonth,
+      topProducts,
       rating: shop.rating || 0,
     });
   } catch (err) {
-    console.error(err);
+    console.error(' Failed to fetch shop by ID:', err);
     res.status(500).json({ error: 'Failed to fetch shop' });
   }
 };
@@ -209,8 +247,6 @@ exports.updateShopStatus = async (req, res) => {
   }
 };
 
-
-  
   exports.updateShop = async (req, res) => {
     try {
       const updated = await Shop.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -220,8 +256,7 @@ exports.updateShopStatus = async (req, res) => {
       res.status(500).json({ error: 'Failed to update shop' });
     }
   };
-  
-  
+    
   exports.deleteShop = async (req, res) => {
     try {
       const shopId = req.params.id;
@@ -266,6 +301,27 @@ exports.updateShopStatus = async (req, res) => {
       res.status(500).json({ error: 'Failed to fetch pending products' });
     }
   };
+  exports.getProductById = async (req, res) => {
+    try {
+      const product = await Product.findById(req.params.id)
+        .populate("shop_id", "name")
+        .lean();
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+  
+      // Nếu bạn có model productImage => lấy ảnh
+      const ProductImage = require("../models/productImage.model");
+      const images = await ProductImage.find({ product_id: product._id });
+      product.images = images.map((img) => img.url);
+  
+      res.json(product);
+    } catch (err) {
+      console.error("Get product by ID error:", err);
+      res.status(500).json({ error: "Failed to get product detail" });
+    }
+  };
+  
   exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find().select('-password'); 
@@ -281,5 +337,40 @@ exports.getUserById = async (req, res) => {
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch user' });
+  }
+};
+
+exports.rejectProduct = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { reason } = req.body;
+
+    const product = await Product.findById(productId).populate('shop_id');
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+
+    product.status = 'archived';
+    await product.save();
+
+    const shop = await Shop.findById(product.shop_id._id).populate('user_id');
+    const user = shop?.user_id;
+
+    if (user?.email) {
+      await sendMail({
+        to: user.email,
+        subject: "Sản phẩm bị từ chối duyệt",
+        html: `
+          <p>Chào ${user.name || "bạn"},</p>
+          <p>Sản phẩm <strong>${product.name}</strong> đã bị <b>từ chối duyệt</b>.</p>
+          <p><b>Lý do:</b> ${reason || "(không rõ)"}</p>
+          <p>Vui lòng kiểm tra và cập nhật lại sản phẩm nếu cần.</p>
+          <p>— SouvenirHub</p>
+        `,
+      });
+    }
+
+    res.json({ message: "Product rejected", product });
+  } catch (err) {
+    console.error("Reject product error:", err);
+    res.status(500).json({ error: "Failed to reject product" });
   }
 };

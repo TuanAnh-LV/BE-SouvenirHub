@@ -79,45 +79,6 @@ router.post('/getAll', productController.getAll);
 
 /**
  * @swagger
- * /api/products:
- *   post:
- *     summary: Create a product
- *     tags: [Products]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - name
- *               - price
- *               - category_id
- *             properties:
- *               name:
- *                 type: string
- *               description:
- *                 type: string
- *               specifications:
- *                 type: string
- *               specialNotes:
- *                 type: string
- *               category_id:
- *                 type: string
- *               price:
- *                 type: number
- *               stock:
- *                 type: integer
- *
- *     responses:
- *       201:
- *         description: Product created
- */
-router.post('/', verifyToken, requireRole(['seller']), createProductValidator, validate, productController.create);
-/**
- * @swagger
  * /api/products/{id}:
  *   get:
  *     summary: Get a product by ID
@@ -234,7 +195,45 @@ router.get('/search', productController.searchProducts);
 router.get('/filter', productController.filterProducts);
 
 
-
+/**
+ * @swagger
+ * /api/products:
+ *   post:
+ *     summary: Create a product
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - price
+ *               - category_id
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               specifications:
+ *                 type: string
+ *               specialNotes:
+ *                 type: string
+ *               category_id:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *               stock:
+ *                 type: integer
+ *
+ *     responses:
+ *       201:
+ *         description: Product created
+ */
+router.post('/', verifyToken, requireRole(['seller']), createProductValidator, validate, productController.create);
 
 /**
  * @swagger
