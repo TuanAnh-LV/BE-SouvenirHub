@@ -346,6 +346,86 @@ exports.getPendingProducts = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch pending products" });
   }
 };
+exports.getProductById = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id)
+      .populate("shop_id", "name")
+      .lean();
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    // Nếu bạn có model productImage => lấy ảnh
+    const ProductImage = require("../models/productImage.model");
+    const images = await ProductImage.find({ product_id: product._id });
+    product.images = images.map((img) => img.url);
+
+    res.json(product);
+  } catch (err) {
+    console.error("Get product by ID error:", err);
+    res.status(500).json({ error: "Failed to get product detail" });
+  }
+};
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    const updated = await Shop.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
+    if (!updated) return res.status(404).json({ error: "Shop not found" });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update shop" });
+  }
+};
+
+exports.deleteShop = async (req, res) => {
+  try {
+    const shopId = req.params.id;
+
+    // ✅ Xoá dữ liệu liên quan trước
+    await Promise.all([
+      Product.deleteMany({ shop_id: shopId }),
+      ShopApplication.deleteMany({ shop_id: shopId }),
+      ShopImage.deleteMany({ shop_id: shopId }),
+    ]);
+
+    const deleted = await Shop.findByIdAndDelete(shopId);
+    if (!deleted) return res.status(404).json({ error: "Shop not found" });
+
+    res.json({ message: "Shop and related data deleted successfully" });
+  } catch (err) {
+    console.error("❌ Failed to delete shop:", err);
+    res.status(500).json({ error: "Failed to delete shop" });
+  }
+};
+
+exports.approveProduct = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const product = await Product.findById(productId);
+    if (!product) return res.status(404).json({ error: "Product not found" });
+
+    product.status = "onSale";
+    await product.save();
+
+    res.json({ message: "Product approved and set to onSale", product });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to approve product" });
+  }
+};
+
+exports.getPendingProducts = async (req, res) => {
+  try {
+    const products = await Product.find({ status: "pendingApproval" }).populate(
+      "shop_id",
+      "name"
+    );
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch pending products" });
+  }
+};
 
 exports.getAllUsers = async (req, res) => {
   try {
@@ -363,5 +443,42 @@ exports.getUserById = async (req, res) => {
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch user" });
+  }
+};
+
+exports.rejectProduct = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { reason } = req.body;
+
+    const product = await Product.findById(productId).populate("shop_id");
+    if (!product) return res.status(404).json({ error: "Product not found" });
+
+    product.status = "archived";
+    await product.save();
+
+    const shop = await Shop.findById(product.shop_id._id).populate("user_id");
+    const user = shop?.user_id;
+
+    if (user?.email) {
+      await sendMail({
+        to: user.email,
+        subject: "Sản phẩm bị từ chối duyệt",
+        html: `
+          <p>Chào ${user.name || "bạn"},</p>
+          <p>Sản phẩm <strong>${
+            product.name
+          }</strong> đã bị <b>từ chối duyệt</b>.</p>
+          <p><b>Lý do:</b> ${reason || "(không rõ)"}</p>
+          <p>Vui lòng kiểm tra và cập nhật lại sản phẩm nếu cần.</p>
+          <p>— SouvenirHub</p>
+        `,
+      });
+    }
+
+    res.json({ message: "Product rejected", product });
+  } catch (err) {
+    console.error("Reject product error:", err);
+    res.status(500).json({ error: "Failed to reject product" });
   }
 };

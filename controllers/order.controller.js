@@ -5,7 +5,7 @@ const Product = require("../models/product.model");
 
 exports.createOrder = async (req, res) => {
   try {
-    const { items, shipping_address_id } = req.body; // items: [{ product_id, quantity }]
+    const { items, shipping_address_id } = req.body;
     let total_price = 0;
     const orderItems = [];
 
@@ -26,8 +26,10 @@ exports.createOrder = async (req, res) => {
         price: product.price,
       });
 
-      product.stock -= item.quantity;
-      await product.save();
+      // ✅ Trừ stock bằng $inc duy nhất
+      await Product.findByIdAndUpdate(item.product_id, {
+        $inc: { stock: -item.quantity },
+      });
     }
 
     const order = new Order({
@@ -53,40 +55,25 @@ exports.createOrder = async (req, res) => {
 
 exports.getMyOrders = async (req, res) => {
   try {
-    const { name } = req.body; // lấy chuỗi cần tìm
+    const orders = await Order.find({ user_id: req.user.id }).sort({
+      created_at: -1,
+    });
 
-    const orders = await Order.find({ user_id: req.user.id });
+    const result = [];
 
-    const result = await Promise.all(
-      orders.map(async (order) => {
-        const items = await OrderItem.find({ order_id: order._id }).populate({
-          path: "product_id",
-          select: "name",
-        });
+    for (const order of orders) {
+      const items = await OrderItem.find({ order_id: order._id }).populate(
+        "product_id"
+      );
+      result.push({
+        ...order.toObject(),
+        items,
+      });
+    }
 
-        // Lọc items nếu có truyền name trong body
-        const matchedItems = name
-          ? items.filter((item) =>
-              item.product_id.name.toLowerCase().includes(name.toLowerCase())
-            )
-          : items;
-
-        // Nếu không khớp sản phẩm nào thì bỏ qua order đó
-        if (name && matchedItems.length === 0) return null;
-
-        return {
-          ...order.toObject(),
-          products: matchedItems.map((item) => item.product_id.name),
-        };
-      })
-    );
-
-    // Loại bỏ các phần tử null (do không khớp sản phẩm)
-    const filteredResult = result.filter((order) => order !== null);
-
-    res.json(filteredResult);
+    res.json(result);
   } catch (err) {
-    console.error(err);
+    console.error("Error fetching orders with items:", err);
     res.status(500).json({ error: "Failed to fetch orders" });
   }
 };
