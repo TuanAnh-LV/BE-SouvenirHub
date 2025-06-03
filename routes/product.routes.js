@@ -16,23 +16,55 @@ const { validate } = require('../middlewares/validate.middleware');
 
 /**
  * @swagger
- * /api/products/getAll:
- *   post:
- *     summary: Get all products
+ * /api/products:
+ *   get:
+ *     summary: Get all products (with filters, pagination, sorting)
  *     tags: [Products]
- *     requestBody:
- *       required: false
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               minPrice:
- *                 type: integer
- *               maxPrice:
- *                 type: integer
+ *     parameters:
+ *       - in: query
+ *         name: name
+ *         schema:
+ *           type: string
+ *         description: Search by product name
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *         description: Category name
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Product status (e.g., "onSale")
+ *       - in: query
+ *         name: minPrice
+ *         schema:
+ *           type: number
+ *       - in: query
+ *         name: maxPrice
+ *         schema:
+ *           type: number
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           default: created_at
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
  *     responses:
  *       200:
  *         description: List of products
@@ -55,7 +87,6 @@ const { validate } = require('../middlewares/validate.middleware');
  *                     type: integer
  *                   sold:
  *                     type: integer
- *                     example: 12
  *                   images:
  *                     type: array
  *                     items:
@@ -75,7 +106,8 @@ const { validate } = require('../middlewares/validate.middleware');
  *                       name:
  *                         type: string
  */
-router.post('/getAll', productController.getAll);
+
+router.get('/', productController.getAll);
 
 /**
  * @swagger
