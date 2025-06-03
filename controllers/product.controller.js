@@ -5,37 +5,99 @@ const sanitizeHtml = require('sanitize-html');
 
 exports.getAll = async (req, res) => {
   try {
-    const { name, minPrice, maxPrice } = req.body;
+    const {
+      name,
+      minPrice,
+      maxPrice,
+      category,
+      status,
+      page = 1,
+      limit = 10,
+      sortBy = 'created_at',
+      sortOrder = 'desc',
+    } = req.query;
+
     let filter = {};
 
-    if (name && name !== '') {
+    if (name) {
       filter.name = { $regex: name, $options: 'i' };
     }
-    if (
-      (minPrice !== undefined && minPrice !== 0) ||
-      (maxPrice !== undefined && maxPrice !== 0)
-    ) {
-      filter.price = {};
-      if (minPrice !== undefined && minPrice !== 0) filter.price.$gte = Number(minPrice);
-      if (maxPrice !== undefined && maxPrice !== 0) filter.price.$lte = Number(maxPrice);
-      if (Object.keys(filter.price).length === 0) delete filter.price;
+
+    if (status) {
+      filter.status = status;
     }
 
-    // Log filter để kiểm tra
-    console.log('Product filter:', filter);
+    if (minPrice || maxPrice) {
+      filter.price = {};
+      if (minPrice) filter.price.$gte = Number(minPrice);
+      if (maxPrice) filter.price.$lte = Number(maxPrice);
+    }
 
-    const products = await Product.find(filter)
-      .populate({ path: 'category_id', select: 'name' })
-      .populate({ path: 'shop_id', select: 'name' });
+    const sortOptions = {
+      [sortBy]: sortOrder === 'asc' ? 1 : -1,
+    };
 
-    const productIds = products.map(p => p._id);
+    const skip = (Number(page) - 1) * Number(limit);
+
+    let products;
+    if (category) {
+      products = await Product.aggregate([
+        {
+          $lookup: {
+            from: 'categories',
+            localField: 'category_id',
+            foreignField: '_id',
+            as: 'category',
+          },
+        },
+        { $unwind: '$category' },
+        {
+          $match: {
+            ...filter,
+            'category.name': { $regex: category, $options: 'i' },
+          },
+        },
+        {
+          $lookup: {
+            from: 'shops',
+            localField: 'shop_id',
+            foreignField: '_id',
+            as: 'shop',
+          },
+        },
+        { $unwind: '$shop' },
+        { $sort: sortOptions },
+        { $skip: skip },
+        { $limit: Number(limit) },
+      ]);
+    } else {
+      products = await Product.find(filter)
+        .populate({ path: 'category_id', select: 'name' })
+        .populate({ path: 'shop_id', select: 'name' })
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(Number(limit));
+    }
+
+    const productIds = products.map((p) => p._id);
     const images = await ProductImage.find({ product_id: { $in: productIds } });
 
-    const productsWithImages = products.map(product => {
+    const productsWithImages = products.map((product) => {
+      const id = product._id || product._id?.toString();
       const productImages = images
-        .filter(img => img.product_id.toString() === product._id.toString())
-        .map(img => img.url);
-      return { ...product.toObject(), images: productImages };
+        .filter((img) => img.product_id.toString() === id.toString())
+        .map((img) => img.url);
+
+      const cat = product.category_id || product.category;
+      const shop = product.shop_id || product.shop;
+
+      return {
+        ...product,
+        ...(product.toObject?.() || {}),
+        category_id: cat,
+        shop_id: shop,
+        images: productImages,
+      };
     });
 
     res.json(productsWithImages);
