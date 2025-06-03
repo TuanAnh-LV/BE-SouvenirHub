@@ -149,7 +149,6 @@ router.patch(
   validate,
   orderController.updateOrderStatus
 );
-
 /**
  * @swagger
  * /api/orders/{id}/status:
@@ -186,5 +185,12 @@ router.patch(
  *       404:
  *         description: Order not found
  */
+
+// swagger
+router.post(
+  "/:id/update-quantity",
+  verifyToken,
+  orderController.updateQuantity
+);
 
 module.exports = router;

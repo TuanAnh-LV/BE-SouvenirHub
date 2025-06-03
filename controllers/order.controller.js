@@ -2,6 +2,7 @@
 const Order = require("../models/order.model");
 const OrderItem = require("../models/orderItem.model");
 const Product = require("../models/product.model");
+const { Decimal128 } = require("mongoose").Types;
 
 exports.createOrder = async (req, res) => {
   try {
@@ -182,5 +183,76 @@ exports.updateOrderStatus = async (req, res) => {
   } catch (err) {
     console.error("Update status error:", err);
     res.status(500).json({ error: "Failed to update order status" });
+  }
+};
+
+exports.updateQuantity = async (req, res) => {
+  try {
+    const { product_id, quantity } = req.body;
+
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ error: "Order not found" });
+    if (order.user_id.toString() !== req.user.id)
+      return res.status(403).json({ error: "You do not have permission" });
+    if (order.status !== "pending")
+      return res
+        .status(400)
+        .json({ error: "Only pending orders can be updated" });
+
+    const orderItem = await OrderItem.findOne({
+      order_id: order._id,
+      product_id,
+    });
+    if (!orderItem)
+      return res.status(404).json({ error: "Order item not found" });
+
+    if (quantity <= 0)
+      return res.status(400).json({ error: "Quantity must be greater than 0" });
+
+    const product = await Product.findById(product_id);
+    if (!product) return res.status(404).json({ error: "Product not found" });
+
+    const oldQuantity = orderItem.quantity;
+    const delta = quantity - oldQuantity;
+
+    // Kiểm tra tồn kho nếu tăng
+    if (delta > 0 && product.stock < delta) {
+      return res.status(400).json({
+        error: `Not enough stock to increase quantity for product ${product_id}`,
+      });
+    }
+
+    // Cập nhật số lượng item
+    orderItem.quantity = quantity;
+    await orderItem.save();
+
+    // Cập nhật stock sản phẩm
+    await Product.findByIdAndUpdate(product_id, {
+      $inc: { stock: -delta },
+    });
+
+    //Tính lại tổng tiền của tất cả các order item
+    const allItems = await OrderItem.find({ order_id: order._id }).populate(
+      "product_id"
+    );
+
+    let newTotal = 0;
+    for (const item of allItems) {
+      const itemPrice = parseFloat(item.price.toString()); // item.price hoặc item.product_id.price
+      newTotal += itemPrice * item.quantity;
+    }
+
+    // Cập nhật total_price
+    order.total_price = Decimal128.fromString(newTotal.toString());
+    await order.save();
+
+    res.json({
+      message: "Order item quantity updated successfully",
+      orderItem,
+      total_price: newTotal,
+    });
+  } catch (err) {
+    console.error("Update quantity error:", err);
+    res.status(500).json({ error: "Failed to update order item quantity" });
   }
 };

@@ -346,6 +346,7 @@ exports.getPendingProducts = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch pending products" });
   }
 };
+
 exports.getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
