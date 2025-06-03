@@ -39,9 +39,11 @@ exports.getAll = async (req, res) => {
 
     const skip = (Number(page) - 1) * Number(limit);
 
-    let products;
+    let products, total;
+
     if (category) {
-      products = await Product.aggregate([
+      // Pipeline cho aggregate khi có category
+      const basePipeline = [
         {
           $lookup: {
             from: 'categories',
@@ -56,7 +58,15 @@ exports.getAll = async (req, res) => {
             ...filter,
             'category.name': { $regex: category, $options: 'i' },
           },
-        },
+        }
+      ];
+
+      const countPipeline = [...basePipeline, { $count: 'total' }];
+      const countResult = await Product.aggregate(countPipeline);
+      total = countResult[0]?.total || 0;
+
+      products = await Product.aggregate([
+        ...basePipeline,
         {
           $lookup: {
             from: 'shops',
@@ -71,6 +81,8 @@ exports.getAll = async (req, res) => {
         { $limit: Number(limit) },
       ]);
     } else {
+      total = await Product.countDocuments(filter);
+
       products = await Product.find(filter)
         .populate({ path: 'category_id', select: 'name' })
         .populate({ path: 'shop_id', select: 'name' })
@@ -79,33 +91,44 @@ exports.getAll = async (req, res) => {
         .limit(Number(limit));
     }
 
-    const productIds = products.map((p) => p._id);
+    const productIds = products.map((p) => p._id?.toString());
     const images = await ProductImage.find({ product_id: { $in: productIds } });
 
     const productsWithImages = products.map((product) => {
-      const id = product._id || product._id?.toString();
+      const plain = typeof product.toObject === 'function' ? product.toObject() : product;
+      const productId = plain._id?.toString();
+
       const productImages = images
-        .filter((img) => img.product_id.toString() === id.toString())
+        .filter((img) => img.product_id.toString() === productId)
         .map((img) => img.url);
 
-      const cat = product.category_id || product.category;
-      const shop = product.shop_id || product.shop;
-
       return {
-        ...product,
-        ...(product.toObject?.() || {}),
-        category_id: cat,
-        shop_id: shop,
+        _id: plain._id,
+        name: plain.name,
+        description: plain.description,
+        price: plain.price,
+        stock: plain.stock,
+        sold: plain.sold,
+        status: plain.status,
+        specifications: plain.specifications,
+        specialNotes: plain.specialNotes,
+        averageRating: plain.averageRating,
+        reviewCount: plain.reviewCount,
+        created_at: plain.created_at,
+
+        category_id: plain.category_id || plain.category || null,
+        shop_id: plain.shop_id || plain.shop || null,
         images: productImages,
       };
     });
 
-    res.json(productsWithImages);
+    res.json({ items: productsWithImages, total });
   } catch (err) {
     console.error('Error fetching products:', err);
     res.status(500).json({ error: 'PRODUCT_FETCH_FAILED', message: err.message });
   }
 };
+
 
 exports.getProductsByCategory = async (req, res) => {
   try {
