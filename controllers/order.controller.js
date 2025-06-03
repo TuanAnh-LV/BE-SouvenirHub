@@ -55,6 +55,9 @@ exports.createOrder = async (req, res) => {
 
 exports.getMyOrders = async (req, res) => {
   try {
+    const { name } = req.body;
+
+    // 1. Tìm tất cả đơn hàng của user
     const orders = await Order.find({ user_id: req.user.id }).sort({
       created_at: -1,
     });
@@ -62,13 +65,25 @@ exports.getMyOrders = async (req, res) => {
     const result = [];
 
     for (const order of orders) {
+      // 2. Tìm tất cả item của order và populate product
       const items = await OrderItem.find({ order_id: order._id }).populate(
         "product_id"
       );
-      result.push({
-        ...order.toObject(),
-        items,
-      });
+
+      // 3. Nếu có truyền name, thì lọc items theo tên sản phẩm
+      const filteredItems = name
+        ? items.filter((item) =>
+            item.product_id?.name?.toLowerCase().includes(name.toLowerCase())
+          )
+        : items;
+
+      // 4. Nếu có item sau khi lọc (hoặc không lọc), thêm vào kết quả
+      if (filteredItems.length > 0) {
+        result.push({
+          ...order.toObject(),
+          items: filteredItems,
+        });
+      }
     }
 
     res.json(result);
