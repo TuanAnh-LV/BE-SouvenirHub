@@ -259,6 +259,8 @@ router.get('/filter', productController.filterProducts);
  *             properties:
  *               name:
  *                 type: string
+ *               category_id:
+ *                 type: string
  *               description:
  *                 type: string
  *               specifications:

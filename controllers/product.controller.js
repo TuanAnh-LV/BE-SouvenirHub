@@ -131,6 +131,10 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
+    // Tìm shop của user hiện tại
+    const shop = await Shop.findOne({ user_id: req.user.id });
+    if (!shop) return res.status(403).json({ error: 'Bạn không có quyền sửa sản phẩm này' });
+
     const cleanDescription = req.body.description
       ? sanitizeHtml(req.body.description, {
           allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'u', 'iframe']),
@@ -146,8 +150,9 @@ exports.update = async (req, res) => {
       ...(cleanDescription && { description: cleanDescription })
     };
 
+    // Sửa lại điều kiện tìm kiếm
     const updated = await Product.findOneAndUpdate(
-      { _id: req.params.id, shop_id: req.user.id },
+      { _id: req.params.id, shop_id: shop._id },
       updateData,
       { new: true }
     );
