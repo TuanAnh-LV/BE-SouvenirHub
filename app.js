@@ -41,10 +41,12 @@ const swaggerOptions = {
       { name: 'Categories', description: 'Product categories' },
       { name: 'Products', description: 'Product creation and browsing' },
       { name: 'ProductImages', description: 'Product image management' },
+      { name: 'Cart', description:'Add to cart'},
       { name: 'Orders', description: 'Order placement and tracking' },
       { name: 'Addresses', description: 'Shipping address management' },
       { name: 'Payments', description: 'Payment processing and management' },
       { name: 'Reviews', description: 'Product reviews and ratings' },
+
     ],
     components: {
       securitySchemes: {
@@ -115,5 +117,7 @@ app.use('/api/shop-applications', shopApplicationRoutes);
 const userRoutes = require('./routes/user.routes');
 app.use('/api/user', userRoutes);
 
+const cartRoutes = require("./routes/cart.routes");
+app.use("/api/cart", cartRoutes);
 
 module.exports = app;
