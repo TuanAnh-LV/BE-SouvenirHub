@@ -19,30 +19,65 @@ function calculateCartSummary(items) {
 
 exports.getCart = async (req, res) => {
   try {
-    const cart = await Cart.findOne({ user: req.user.id }).populate("items.product");
-    if (!cart) return res.json({ items: [], total_price: 0, total_quantity: 0 });
+    const cart = await Cart.findOne({ user: req.user.id }).populate({
+      path: "items.product",
+      populate: { path: "shop_id", select: "name" },
+    });
 
-    const productIds = cart.items.map(item => item.product?._id?.toString()).filter(Boolean);
-    const images = await ProductImage.find({ product_id: { $in: productIds } });
+    if (!cart) {
+      return res.json({
+        groupedItems: [],
+        total_price: 0,
+        total_quantity: 0,
+      });
+    }
 
-    const itemsWithImages = cart.items.map(item => {
+    const productIds = cart.items
+      .map((item) => item.product?._id?.toString())
+      .filter(Boolean);
+
+    const images = await ProductImage.find({
+      product_id: { $in: productIds },
+    });
+
+    const itemsWithImages = cart.items.map((item) => {
       const product = item.product.toObject();
       const productImages = images
-        .filter(img => img.product_id.toString() === product._id.toString())
-        .map(img => img.url);
+        .filter((img) => img.product_id.toString() === product._id.toString())
+        .map((img) => img.url);
 
       return {
         ...item.toObject(),
         product: {
           ...product,
-          image: productImages?.[0] || "/placeholder.jpg"
-        }
+          image: productImages?.[0] || "/placeholder.jpg",
+        },
       };
     });
 
+    // Gom nhóm sản phẩm theo shop_id
+    const groupedMap = {};
+
+    for (const item of itemsWithImages) {
+      const shop = item.product?.shop_id;
+      if (!shop || !shop._id) continue;
+
+      const shopId = shop._id.toString();
+      if (!groupedMap[shopId]) {
+        groupedMap[shopId] = {
+          shop_id: shopId,
+          shop_name: shop.name,
+          items: [],
+        };
+      }
+
+      groupedMap[shopId].items.push(item);
+    }
+
+    const groupedItems = Object.values(groupedMap);
     const { total_price, total_quantity } = calculateCartSummary(itemsWithImages);
 
-    res.json({ ...cart.toObject(), items: itemsWithImages, total_price, total_quantity });
+    res.json({ groupedItems, total_price, total_quantity });
   } catch (err) {
     console.error("[getCart]", err);
     res.status(500).json({ message: "Failed to load cart" });
