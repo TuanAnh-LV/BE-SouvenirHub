@@ -3,21 +3,30 @@ const Order = require("../models/order.model");
 const OrderItem = require("../models/orderItem.model");
 const Product = require("../models/product.model");
 const ProductImage = require('../models/productImage.model'); 
+function calculateCartSummary(items) {
+  let total_price = 0;
+  let total_quantity = 0;
+
+  for (const item of items) {
+    const price = parseFloat(item.product?.price?.toString() || 0);
+    const quantity = item.quantity || 0;
+    total_price += price * quantity;
+    total_quantity += quantity;
+  }
+
+  return { total_price, total_quantity };
+}
+
 exports.getCart = async (req, res) => {
   try {
     const cart = await Cart.findOne({ user: req.user.id }).populate("items.product");
+    if (!cart) return res.json({ items: [], total_price: 0, total_quantity: 0 });
 
-    if (!cart) return res.json({ items: [] });
-
-    // Lấy danh sách productId trong giỏ hàng
     const productIds = cart.items.map(item => item.product?._id?.toString()).filter(Boolean);
-
-    // Tìm ảnh tương ứng
     const images = await ProductImage.find({ product_id: { $in: productIds } });
 
-    // Gắn ảnh vào từng product
     const itemsWithImages = cart.items.map(item => {
-      const product = item.product.toObject(); // clone để chỉnh sửa
+      const product = item.product.toObject();
       const productImages = images
         .filter(img => img.product_id.toString() === product._id.toString())
         .map(img => img.url);
@@ -26,12 +35,14 @@ exports.getCart = async (req, res) => {
         ...item.toObject(),
         product: {
           ...product,
-          image: productImages?.[0] || "/placeholder.jpg" // gắn ảnh đầu tiên vào
+          image: productImages?.[0] || "/placeholder.jpg"
         }
       };
     });
 
-    res.json({ ...cart.toObject(), items: itemsWithImages });
+    const { total_price, total_quantity } = calculateCartSummary(itemsWithImages);
+
+    res.json({ ...cart.toObject(), items: itemsWithImages, total_price, total_quantity });
   } catch (err) {
     console.error("[getCart]", err);
     res.status(500).json({ message: "Failed to load cart" });
@@ -56,25 +67,33 @@ exports.addToCart = async (req, res) => {
       }
     }
     await cart.save();
-    res.json(cart);
+
+    const populatedCart = await Cart.findOne({ user: req.user.id }).populate("items.product");
+    const { total_price, total_quantity } = calculateCartSummary(populatedCart.items);
+    res.json({ ...populatedCart.toObject(), total_price, total_quantity });
   } catch (err) {
     res.status(500).json({ message: "Failed to add to cart", error: err.message });
   }
 };
 
+
 exports.updateCartItem = async (req, res) => {
   const { productId, quantity } = req.body;
   try {
-    const cart = await Cart.findOne({ user: req.user.id });
+    const cart = await Cart.findOne({ user: req.user.id }).populate("items.product");
     if (!cart) return res.status(404).json({ message: "Cart not found" });
-    const item = cart.items.find(item => item.product.toString() === productId);
+
+    const item = cart.items.find(item => item.product._id.toString() === productId);
     if (item) item.quantity = quantity;
+
     await cart.save();
-    res.json(cart);
+    const { total_price, total_quantity } = calculateCartSummary(cart.items);
+    res.json({ ...cart.toObject(), total_price, total_quantity });
   } catch (err) {
     res.status(500).json({ message: "Failed to update cart item" });
   }
 };
+
 
 exports.removeFromCart = async (req, res) => {
   const { productId } = req.params;
@@ -83,8 +102,10 @@ exports.removeFromCart = async (req, res) => {
       { user: req.user.id },
       { $pull: { items: { product: productId } } },
       { new: true }
-    );
-    res.json(cart);
+    ).populate("items.product");
+
+    const { total_price, total_quantity } = calculateCartSummary(cart.items);
+    res.json({ ...cart.toObject(), total_price, total_quantity });
   } catch (err) {
     res.status(500).json({ message: "Failed to remove item from cart" });
   }
@@ -97,11 +118,13 @@ exports.clearCart = async (req, res) => {
       { items: [] },
       { new: true }
     );
-    res.json(cart);
+
+    res.json({ ...cart.toObject(), items: [], total_price: 0, total_quantity: 0 });
   } catch (err) {
     res.status(500).json({ message: "Failed to clear cart" });
   }
 };
+
 exports.checkoutFromCart = async (req, res) => {
     try {
       const { shipping_address_id } = req.body;
