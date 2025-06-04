@@ -2,11 +2,38 @@ const Cart = require("../models/cart.model");
 const Order = require("../models/order.model");
 const OrderItem = require("../models/orderItem.model");
 const Product = require("../models/product.model");
+const ProductImage = require('../models/productImage.model'); 
 exports.getCart = async (req, res) => {
   try {
     const cart = await Cart.findOne({ user: req.user.id }).populate("items.product");
-    res.json(cart || { items: [] });
+
+    if (!cart) return res.json({ items: [] });
+
+    // Lấy danh sách productId trong giỏ hàng
+    const productIds = cart.items.map(item => item.product?._id?.toString()).filter(Boolean);
+
+    // Tìm ảnh tương ứng
+    const images = await ProductImage.find({ product_id: { $in: productIds } });
+
+    // Gắn ảnh vào từng product
+    const itemsWithImages = cart.items.map(item => {
+      const product = item.product.toObject(); // clone để chỉnh sửa
+      const productImages = images
+        .filter(img => img.product_id.toString() === product._id.toString())
+        .map(img => img.url);
+
+      return {
+        ...item.toObject(),
+        product: {
+          ...product,
+          image: productImages?.[0] || "/placeholder.jpg" // gắn ảnh đầu tiên vào
+        }
+      };
+    });
+
+    res.json({ ...cart.toObject(), items: itemsWithImages });
   } catch (err) {
+    console.error("[getCart]", err);
     res.status(500).json({ message: "Failed to load cart" });
   }
 };
