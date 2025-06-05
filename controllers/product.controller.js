@@ -5,42 +5,125 @@ const sanitizeHtml = require("sanitize-html");
 
 exports.getAll = async (req, res) => {
   try {
-    const { name, minPrice, maxPrice } = req.body;
+    const {
+      name,
+      minPrice,
+      maxPrice,
+      category,
+      status,
+      page = 1,
+      limit = 10,
+      sortBy = "created_at",
+      sortOrder = "desc",
+    } = req.query;
+
     let filter = {};
 
-    if (name && name !== "") {
+    if (name) {
       filter.name = { $regex: name, $options: "i" };
     }
-    if (
-      (minPrice !== undefined && minPrice !== 0) ||
-      (maxPrice !== undefined && maxPrice !== 0)
-    ) {
-      filter.price = {};
-      if (minPrice !== undefined && minPrice !== 0)
-        filter.price.$gte = Number(minPrice);
-      if (maxPrice !== undefined && maxPrice !== 0)
-        filter.price.$lte = Number(maxPrice);
-      if (Object.keys(filter.price).length === 0) delete filter.price;
+
+    if (status) {
+      filter.status = status;
     }
 
-    // Log filter để kiểm tra
-    console.log("Product filter:", filter);
+    if (minPrice || maxPrice) {
+      filter.price = {};
+      if (minPrice) filter.price.$gte = Number(minPrice);
+      if (maxPrice) filter.price.$lte = Number(maxPrice);
+    }
 
-    const products = await Product.find(filter)
-      .populate({ path: "category_id", select: "name" })
-      .populate({ path: "shop_id", select: "name" });
+    const sortOptions = {
+      [sortBy]: sortOrder === "asc" ? 1 : -1,
+    };
 
-    const productIds = products.map((p) => p._id);
+    const skip = (Number(page) - 1) * Number(limit);
+
+    let products, total;
+
+    if (category) {
+      // Pipeline cho aggregate khi có category
+      const basePipeline = [
+        {
+          $lookup: {
+            from: "categories",
+            localField: "category_id",
+            foreignField: "_id",
+            as: "category",
+          },
+        },
+        { $unwind: "$category" },
+        {
+          $match: {
+            ...filter,
+            "category.name": { $regex: category, $options: "i" },
+          },
+        },
+      ];
+
+      const countPipeline = [...basePipeline, { $count: "total" }];
+      const countResult = await Product.aggregate(countPipeline);
+      total = countResult[0]?.total || 0;
+
+      products = await Product.aggregate([
+        ...basePipeline,
+        {
+          $lookup: {
+            from: "shops",
+            localField: "shop_id",
+            foreignField: "_id",
+            as: "shop",
+          },
+        },
+        { $unwind: "$shop" },
+        { $sort: sortOptions },
+        { $skip: skip },
+        { $limit: Number(limit) },
+      ]);
+    } else {
+      total = await Product.countDocuments(filter);
+
+      products = await Product.find(filter)
+        .populate({ path: "category_id", select: "name" })
+        .populate({ path: "shop_id", select: "name" })
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(Number(limit));
+    }
+
+    const productIds = products.map((p) => p._id?.toString());
     const images = await ProductImage.find({ product_id: { $in: productIds } });
 
     const productsWithImages = products.map((product) => {
+      const plain =
+        typeof product.toObject === "function" ? product.toObject() : product;
+      const productId = plain._id?.toString();
+
       const productImages = images
-        .filter((img) => img.product_id.toString() === product._id.toString())
+        .filter((img) => img.product_id.toString() === productId)
         .map((img) => img.url);
-      return { ...product.toObject(), images: productImages };
+
+      return {
+        _id: plain._id,
+        name: plain.name,
+        description: plain.description,
+        price: plain.price,
+        stock: plain.stock,
+        sold: plain.sold,
+        status: plain.status,
+        specifications: plain.specifications,
+        specialNotes: plain.specialNotes,
+        averageRating: plain.averageRating,
+        reviewCount: plain.reviewCount,
+        created_at: plain.created_at,
+
+        category_id: plain.category || plain.category_id || null,
+        shop_id: plain.shop || plain.shop_id || null,
+        images: productImages,
+      };
     });
 
-    res.json(productsWithImages);
+    res.json({ items: productsWithImages, total });
   } catch (err) {
     console.error("Error fetching products:", err);
     res
@@ -156,6 +239,13 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
+    // Tìm shop của user hiện tại
+    const shop = await Shop.findOne({ user_id: req.user.id });
+    if (!shop)
+      return res
+        .status(403)
+        .json({ error: "Bạn không có quyền sửa sản phẩm này" });
+
     const cleanDescription = req.body.description
       ? sanitizeHtml(req.body.description, {
           allowedTags: sanitizeHtml.defaults.allowedTags.concat([
@@ -177,8 +267,9 @@ exports.update = async (req, res) => {
       ...(cleanDescription && { description: cleanDescription }),
     };
 
+    // Sửa lại điều kiện tìm kiếm
     const updated = await Product.findOneAndUpdate(
-      { _id: req.params.id, shop_id: req.user.id },
+      { _id: req.params.id, shop_id: shop._id },
       updateData,
       { new: true }
     );

@@ -16,66 +16,107 @@ const { validate } = require('../middlewares/validate.middleware');
 
 /**
  * @swagger
- * /api/products/getAll:
- *   post:
- *     summary: Get all products
+ * /api/products:
+ *   get:
+ *     summary: Get all products (with filters, pagination, sorting)
  *     tags: [Products]
- *     requestBody:
- *       required: false
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               minPrice:
- *                 type: integer
- *               maxPrice:
- *                 type: integer
+ *     parameters:
+ *       - in: query
+ *         name: name
+ *         schema:
+ *           type: string
+ *         description: Search by product name
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *         description: Category name (by name, not ID)
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Product status (e.g., "onSale")
+ *       - in: query
+ *         name: minPrice
+ *         schema:
+ *           type: number
+ *       - in: query
+ *         name: maxPrice
+ *         schema:
+ *           type: number
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number (for pagination)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           default: created_at
+ *         description: Field to sort by
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sorting order
  *     responses:
  *       200:
- *         description: List of products
+ *         description: List of products with pagination
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   _id:
- *                     type: string
- *                   name:
- *                     type: string
- *                   description:
- *                     type: string
- *                   price:
- *                     type: number
- *                   stock:
- *                     type: integer
- *                   sold:
- *                     type: integer
- *                     example: 12
- *                   images:
- *                     type: array
- *                     items:
- *                       type: string
- *                   category_id:
+ *               type: object
+ *               properties:
+ *                 items:
+ *                   type: array
+ *                   items:
  *                     type: object
  *                     properties:
  *                       _id:
  *                         type: string
  *                       name:
  *                         type: string
- *                   shop_id:
- *                     type: object
- *                     properties:
- *                       _id:
+ *                       description:
  *                         type: string
- *                       name:
- *                         type: string
+ *                       price:
+ *                         type: number
+ *                       stock:
+ *                         type: integer
+ *                       sold:
+ *                         type: integer
+ *                       images:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                       category_id:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                       shop_id:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                 total:
+ *                   type: integer
+ *                   description: Total number of matching products
  */
-router.post('/getAll', productController.getAll);
+router.get('/', productController.getAll);
 
 /**
  * @swagger
@@ -257,6 +298,8 @@ router.post('/', verifyToken, requireRole(['seller']), createProductValidator, v
  *             type: object
  *             properties:
  *               name:
+ *                 type: string
+ *               category_id:
  *                 type: string
  *               description:
  *                 type: string
