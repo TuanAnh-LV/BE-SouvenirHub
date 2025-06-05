@@ -112,7 +112,7 @@ router.delete("/clear",verifyToken, cartController.clearCart);
  * @swagger
  * /api/cart/checkout:
  *   post:
- *     summary: Checkout and create order from cart
+ *     summary: Checkout and create order from selected items in cart
  *     tags: [Cart]
  *     security:
  *       - bearerAuth: []
@@ -122,12 +122,26 @@ router.delete("/clear",verifyToken, cartController.clearCart);
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - shipping_address_id
+ *               - selectedProductIds
  *             properties:
  *               shipping_address_id:
  *                 type: string
+ *                 example: "665f0b52e8e7b0c7c0d4f3ab"
+ *               selectedProductIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["665f0a88e8e7b0c7c0d4f3aa", "665f0a99e8e7b0c7c0d4f3bb"]
  *     responses:
  *       201:
- *         description: Order created
+ *         description: Order created from selected cart items
+ *       400:
+ *         description: Bad request, missing or invalid selectedProductIds
+ *       500:
+ *         description: Server error
  */
+
 router.post("/checkout",verifyToken, cartController.checkoutFromCart);
 module.exports = router;

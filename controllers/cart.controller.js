@@ -16,6 +16,54 @@ function calculateCartSummary(items) {
 
   return { total_price, total_quantity };
 }
+async function enrichCartAndGroup(cart) {
+  const productIds = cart.items
+    .map((item) => item.product?._id?.toString())
+    .filter(Boolean);
+
+  const images = await ProductImage.find({
+    product_id: { $in: productIds },
+  });
+
+  const itemsWithImages = cart.items.map((item) => {
+    const product = item.product.toObject?.() || item.product; // fallback
+    const productImages = images
+      .filter((img) => img.product_id.toString() === product._id.toString())
+      .map((img) => img.url);
+
+    return {
+      ...item.toObject?.() || item,
+      product: {
+        ...product,
+        image: productImages?.[0] || "/placeholder.jpg",
+      },
+    };
+  });
+
+  const groupedMap = {};
+
+  for (const item of itemsWithImages) {
+    const shop = item.product?.shop_id;
+    if (!shop || !shop._id) continue;
+
+    const shopId = shop._id.toString();
+    if (!groupedMap[shopId]) {
+      groupedMap[shopId] = {
+        shop_id: shopId,
+        shop_name: shop.name,
+        items: [],
+      };
+    }
+
+    groupedMap[shopId].items.push(item);
+  }
+
+  const groupedItems = Object.values(groupedMap);
+  const { total_price, total_quantity } = calculateCartSummary(itemsWithImages);
+
+  return { groupedItems, total_price, total_quantity };
+}
+
 
 exports.getCart = async (req, res) => {
   try {
@@ -103,7 +151,14 @@ exports.addToCart = async (req, res) => {
     }
     await cart.save();
 
-    const populatedCart = await Cart.findOne({ user: req.user.id }).populate("items.product");
+    const populatedCart = await Cart.findOne({ user: req.user.id }).populate({
+      path: "items.product",
+      populate: { path: "shop_id", select: "name" },
+    });
+    
+    const enriched = await enrichCartAndGroup(populatedCart);
+    res.json(enriched);
+    
     const { total_price, total_quantity } = calculateCartSummary(populatedCart.items);
     res.json({ ...populatedCart.toObject(), total_price, total_quantity });
   } catch (err) {
@@ -115,15 +170,18 @@ exports.addToCart = async (req, res) => {
 exports.updateCartItem = async (req, res) => {
   const { productId, quantity } = req.body;
   try {
-    const cart = await Cart.findOne({ user: req.user.id }).populate("items.product");
+    const cart = await Cart.findOne({ user: req.user.id }).populate({
+      path: "items.product",
+      populate: { path: "shop_id", select: "name" },
+    });
     if (!cart) return res.status(404).json({ message: "Cart not found" });
 
     const item = cart.items.find(item => item.product._id.toString() === productId);
     if (item) item.quantity = quantity;
 
     await cart.save();
-    const { total_price, total_quantity } = calculateCartSummary(cart.items);
-    res.json({ ...cart.toObject(), total_price, total_quantity });
+    const enriched = await enrichCartAndGroup(cart);
+    res.json(enriched);
   } catch (err) {
     res.status(500).json({ message: "Failed to update cart item" });
   }
@@ -137,14 +195,23 @@ exports.removeFromCart = async (req, res) => {
       { user: req.user.id },
       { $pull: { items: { product: productId } } },
       { new: true }
-    ).populate("items.product");
+    ).populate({
+      path: "items.product",
+      populate: { path: "shop_id", select: "name" },
+    });
 
-    const { total_price, total_quantity } = calculateCartSummary(cart.items);
-    res.json({ ...cart.toObject(), total_price, total_quantity });
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
+
+    const enriched = await enrichCartAndGroup(cart);
+    res.json(enriched);
   } catch (err) {
+    console.error("[removeFromCart]", err);
     res.status(500).json({ message: "Failed to remove item from cart" });
   }
 };
+
 
 exports.clearCart = async (req, res) => {
   try {
@@ -154,59 +221,86 @@ exports.clearCart = async (req, res) => {
       { new: true }
     );
 
-    res.json({ ...cart.toObject(), items: [], total_price: 0, total_quantity: 0 });
+    const emptyGrouped = { groupedItems: [], total_price: 0, total_quantity: 0 };
+    res.json({ ...cart.toObject(), ...emptyGrouped });
   } catch (err) {
     res.status(500).json({ message: "Failed to clear cart" });
   }
 };
 
+
+
 exports.checkoutFromCart = async (req, res) => {
-    try {
-      const { shipping_address_id } = req.body;
-      const cart = await Cart.findOne({ user: req.user.id }).populate("items.product");
-      if (!cart || cart.items.length === 0) {
-        return res.status(400).json({ message: "Cart is empty" });
-      }
-  
-      let total_price = 0;
-      const orderItems = [];
-  
-      for (const item of cart.items) {
-        const product = item.product;
-        if (!product || product.stock < item.quantity) {
-          return res.status(400).json({ error: `Product ${product?._id} unavailable or out of stock` });
-        }
-        const itemTotal = parseFloat(product.price.toString()) * item.quantity;
-        total_price += itemTotal;
-  
-        orderItems.push({
-          product_id: product._id,
-          quantity: item.quantity,
-          price: product.price
-        });
-  
-        await Product.findByIdAndUpdate(product._id, {
-          $inc: { stock: -item.quantity }
-        });
-      }
-  
-      const order = new Order({
-        user_id: req.user.id,
-        shipping_address_id,
-        total_price,
-        status: 'pending'
-      });
-      await order.save();
-  
-      for (const item of orderItems) {
-        await new OrderItem({ ...item, order_id: order._id }).save();
-      }
-  
-      await Cart.findOneAndUpdate({ user: req.user.id }, { items: [] });
-  
-      res.status(201).json({ message: "Order created from cart", order_id: order._id });
-    } catch (err) {
-      console.error("[checkoutFromCart]", err);
-      res.status(500).json({ error: "Failed to checkout from cart" });
+  try {
+    const { shipping_address_id, selectedProductIds } = req.body;
+    const cart = await Cart.findOne({ user: req.user.id }).populate({
+      path: "items.product",
+      populate: { path: "shop_id", select: "name" },
+    });
+
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ message: "Cart is empty" });
     }
-  };
+
+    // Lọc các item được chọn
+    const selectedItems = cart.items.filter((item) =>
+      selectedProductIds.includes(item.product._id.toString())
+    );
+
+    if (selectedItems.length === 0) {
+      return res.status(400).json({ message: "No selected items to checkout" });
+    }
+
+    let total_price = 0;
+    const orderItems = [];
+
+    for (const item of selectedItems) {
+      const product = item.product;
+      if (!product || product.stock < item.quantity) {
+        return res.status(400).json({
+          error: `Product ${product?.name || product?._id} is unavailable or out of stock`,
+        });
+      }
+
+      const itemTotal = parseFloat(product.price.toString()) * item.quantity;
+      total_price += itemTotal;
+
+      orderItems.push({
+        product_id: product._id,
+        quantity: item.quantity,
+        price: product.price,
+      });
+
+      // Trừ stock
+      await Product.findByIdAndUpdate(product._id, {
+        $inc: { stock: -item.quantity },
+      });
+    }
+
+    // Tạo order
+    const order = new Order({
+      user_id: req.user.id,
+      shipping_address_id,
+      total_price,
+      status: "pending",
+    });
+    await order.save();
+
+    for (const item of orderItems) {
+      await new OrderItem({ ...item, order_id: order._id }).save();
+    }
+
+    // Cập nhật giỏ hàng, giữ lại các item chưa được chọn
+    const remainingItems = cart.items.filter(
+      (item) => !selectedProductIds.includes(item.product._id.toString())
+    );
+    cart.items = remainingItems;
+    await cart.save();
+
+    res.status(201).json({ message: "Order created from selected items", order_id: order._id });
+  } catch (err) {
+    console.error("[checkoutFromCart]", err);
+    res.status(500).json({ error: "Failed to checkout from cart" });
+  }
+};
+
