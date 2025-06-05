@@ -2,10 +2,11 @@
 const Order = require('../models/order.model');
 const OrderItem = require('../models/orderItem.model');
 const Product = require('../models/product.model');
+const Voucher = require('../models/voucher.model');
 
 exports.createOrder = async (req, res) => {
   try {
-    const { items, shipping_address_id } = req.body;
+    const { items, shipping_address_id, voucher_id } = req.body; // đổi voucher_code thành voucher_id
     let total_price = 0;
     const orderItems = [];
 
@@ -24,10 +25,42 @@ exports.createOrder = async (req, res) => {
         price: product.price
       });
 
-      // ✅ Trừ stock bằng $inc duy nhất
       await Product.findByIdAndUpdate(item.product_id, {
         $inc: { stock: -item.quantity }
       });
+    }
+
+    // Áp dụng voucher nếu có
+    let voucher = null;
+    let discountAmount = 0;
+    if (voucher_id) {
+      voucher = await Voucher.findOne({
+        _id: voucher_id,
+        quantity: { $gt: 0 },
+        expires_at: { $gt: new Date() }
+      });
+      if (!voucher) {
+        return res.status(400).json({ error: 'Voucher không hợp lệ hoặc đã hết hạn/số lượng' });
+      }
+      // Kiểm tra điều kiện giá trị đơn hàng tối thiểu
+      if (voucher.min_order_value && total_price < voucher.min_order_value) {
+        return res.status(400).json({ error: `Đơn hàng phải từ ${voucher.min_order_value}đ mới được áp dụng voucher này` });
+      }
+      if (voucher.type === 'percent') {
+        discountAmount = total_price * (voucher.discount / 100);
+        // Nếu có max_discount thì không giảm quá số này
+        if (voucher.max_discount && discountAmount > voucher.max_discount) {
+          discountAmount = voucher.max_discount;
+        }
+      } else {
+        discountAmount = voucher.discount;
+      }
+      discountAmount = Math.min(discountAmount, total_price);
+      total_price -= discountAmount;
+
+      // Trừ số lượng voucher
+      voucher.quantity -= 1;
+      await voucher.save();
     }
 
     const order = new Order({
@@ -42,7 +75,12 @@ exports.createOrder = async (req, res) => {
       await new OrderItem({ ...item, order_id: order._id }).save();
     }
 
-    res.status(201).json({ message: 'Order placed successfully', order_id: order._id });
+    res.status(201).json({
+      message: 'Order placed successfully',
+      order_id: order._id,
+      discount: discountAmount,
+      voucher: voucher ? voucher._id : null
+    });
   } catch (err) {
     console.error('Order Error:', err);
     res.status(500).json({ error: 'Failed to place order' });
