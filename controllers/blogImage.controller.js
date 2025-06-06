@@ -1,5 +1,6 @@
 const BlogImage = require("../models/blogImage.model");
 const cloudinary = require("cloudinary").v2;
+const Blog = require("../models/blog.model");
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,

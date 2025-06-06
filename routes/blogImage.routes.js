@@ -7,7 +7,7 @@ const {
   deleteImageById,
   deleteImagesByBlog,
 } = require("../controllers/blogImage.controller");
-
+const { verifyToken, requireRole } = require("../middlewares/auth.middleware");
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
@@ -49,7 +49,12 @@ const upload = multer({ storage });
  *       500:
  *         description: Upload failed
  */
-router.post("/:blogId", upload.array("images", 5), uploadBlogImages);
+router.post(
+  "/:blogId",
+  verifyToken,
+  upload.array("images", 5),
+  uploadBlogImages
+);
 
 // /**
 //  * @swagger
