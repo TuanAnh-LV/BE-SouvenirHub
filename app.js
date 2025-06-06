@@ -125,4 +125,7 @@ app.use("/api/blogs", blogRoutes);
 const blogImageRoutes = require("./routes/blogImage.routes");
 app.use("/api/blog-images", blogImageRoutes);
 
+const voucherRoutes = require("./routes/voucher.routes");
+app.use("/api/vouchers", voucherRoutes);
+
 module.exports = app;
