@@ -120,4 +120,7 @@ app.use('/api/user', userRoutes);
 const cartRoutes = require("./routes/cart.routes");
 app.use("/api/cart", cartRoutes);
 
+const voucherRoutes = require('./routes/voucher.routes');
+app.use('/api/vouchers', voucherRoutes);
+
 module.exports = app;
