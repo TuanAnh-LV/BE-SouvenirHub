@@ -13,6 +13,10 @@ const userSchema = new mongoose.Schema({
     created_at: { type: Date, default: Date.now },
     reset_password_token: String,
     reset_password_expires: Date,
+    email_verified: { type: Boolean, default: true },
+new_email: String,
+email_verification_token: String,
+email_verification_expires: Date,
 });
 
 module.exports = mongoose.model('User', userSchema);

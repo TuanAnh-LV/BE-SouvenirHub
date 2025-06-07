@@ -40,19 +40,18 @@ router.get('/me', verifyToken, userController.getProfile);
  *           schema:
  *             type: object
  *             properties:
+ *               email:
+ *                  type: string
  *               name:
  *                 type: string
- *                 example: "Nguyễn Văn A"
  *               gender:
  *                 type: string
- *                 enum: [Nam, Nữ, Khác]
  *               birthday:
  *                 type: string
  *                 format: date
  *                 example: 2000-01-01
  *               phone:
  *                 type: string
- *                 example: "0388123456"
  *               avatar:
  *                 type: string
  *                 format: binary

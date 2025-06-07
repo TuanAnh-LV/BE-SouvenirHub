@@ -163,3 +163,60 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+exports.verifyNewEmail = async (req, res) => {
+  const { token } = req.body;
+
+  try {
+    const user = await User.findOne({
+      email_verification_token: token,
+      email_verification_expires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired verification code.' });
+    }
+
+    user.email = user.new_email;
+    user.new_email = undefined;
+    user.email_verified = true;
+    user.email_verification_token = undefined;
+    user.email_verification_expires = undefined;
+
+    await user.save();
+
+    res.json({ message: 'Email verified successfully.' });
+  } catch (err) {
+    console.error('Verify email error:', err);
+    res.status(500).json({ error: 'Failed to verify email.' });
+  }
+};
+exports.resendVerificationEmail = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    if (!user || !user.new_email) {
+      return res.status(400).json({ message: 'No pending email to verify.' });
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    user.email_verification_token = code;
+    user.email_verification_expires = Date.now() + 15 * 60 * 1000;
+    await user.save();
+
+    await sendMail({
+      to: user.new_email,
+      subject: 'Resend Email Verification - SouvenirHub',
+      html: `
+        <p>Hello ${user.name},</p>
+        <p>Here is your new email verification code:</p>
+        <h2>${code}</h2>
+        <p>This code is valid for 15 minutes.</p>
+      `
+    });
+
+    res.json({ message: 'Verification code resent to your new email.' });
+  } catch (err) {
+    console.error('Resend email verification error:', err);
+    res.status(500).json({ error: 'Failed to resend verification code.' });
+  }
+};
