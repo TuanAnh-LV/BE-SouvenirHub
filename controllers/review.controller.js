@@ -2,6 +2,7 @@ const Review = require('../models/review.model');
 const OrderItem = require('../models/orderItem.model');
 const Product = require('../models/product.model');
 const Shop = require('../models/shop.model');
+const Order = require('../models/order.model')
 
 exports.createReview = async (req, res) => {
   try {
@@ -19,7 +20,12 @@ exports.createReview = async (req, res) => {
     }
 
     // Kiểm tra người dùng đã mua sản phẩm chưa
-    const hasPurchased = await OrderItem.exists({ product_id, user_id: userId });
+    const hasPurchased = await Order.exists({
+      user_id: userId,
+      status: 'completed',
+      _id: { $in: await OrderItem.find({ product_id }).distinct('order_id') }
+    });
+    
     if (!hasPurchased) {
       return res.status(403).json({ error: 'You can only review products you have purchased.' });
     }

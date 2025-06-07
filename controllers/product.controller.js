@@ -149,22 +149,6 @@ exports.searchProducts = async (req, res) => {
   }
 };
 
-exports.filterProducts = async (req, res) => {
-  try {
-    const { priceMin, priceMax, rating } = req.query;
-    const filter = {};
-    if (priceMin || priceMax) filter.price = {};
-    if (priceMin) filter.price.$gte = Number(priceMin);
-    if (priceMax) filter.price.$lte = Number(priceMax);
-    if (rating) filter.rating = { $gte: Number(rating) };
-
-    const products = await Product.find(filter);
-    res.json(products);
-  } catch (err) {
-    res.status(500).json({ error: 'PRODUCT_FETCH_FAILED', message: 'Failed to filter products' });
-  }
-};
-
 
 exports.getById = async (req, res) => {
   try {

@@ -223,5 +223,49 @@ router.post('/reset-password', resetPasswordValidator, validate, authController.
  *       400:
  *         description: Invalid or expired token
  */
+/**
+ * @swagger
+ * /api/auth/verify-new-email:
+ *   post:
+ *     summary: Verify user's new email with 6-digit code
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 example: "483920"
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *       400:
+ *         description: Invalid or expired verification code
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/verify-new-email', authController.verifyNewEmail);
+/**
+ * @swagger
+ * /api/auth/resend-verification-code:
+ *   post:
+ *     summary: Resend email verification code for pending email change
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Verification code resent to new email
+ *       400:
+ *         description: No pending email to verify
+ *       500:
+ *         description: Failed to resend verification code
+ */
+router.post('/resend-verification-code', verifyToken, authController.resendVerificationEmail);
 
 module.exports = router;

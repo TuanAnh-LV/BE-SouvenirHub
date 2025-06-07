@@ -2,6 +2,8 @@ const User = require('../models/user.model');
 const bcrypt = require('bcrypt');
 const { uploadToCloudinary } = require('../utils/cloudinary');
 const { isValidImage } = require('../utils/validator');
+const crypto = require('crypto');
+const { sendMail } = require('../utils/mailer');
 
 exports.getProfile = async (req, res) => {
   try {
@@ -13,11 +15,20 @@ exports.getProfile = async (req, res) => {
   }
 };
 
+
+
 exports.updateProfile = async (req, res) => {
   try {
     const updates = { ...req.body };
 
-    // Validate file type nếu có
+    // Remove fields with empty string values to avoid validation errors
+    Object.keys(updates).forEach(key => {
+      if (updates[key] === '') {
+        delete updates[key];
+      }
+    });
+
+    // Validate file type if avatar is uploaded
     if (req.file && !isValidImage(req.file.mimetype)) {
       return res.status(400).json({ error: 'Invalid file type' });
     }
@@ -27,13 +38,44 @@ exports.updateProfile = async (req, res) => {
       updates.avatar = result.secure_url;
     }
 
-    const updatedUser = await User.findByIdAndUpdate(req.user.id, updates, { new: true }).select('-password_hash');
-    res.json(updatedUser);
+    const user = await User.findById(req.user.id);
+
+    // Email update flow
+    if (updates.email && updates.email !== user.email) {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+      user.new_email = updates.email;
+      user.email_verification_token = code;
+      user.email_verification_expires = Date.now() + 15 * 60 * 1000;
+      user.email_verified = false;
+
+      await sendMail({
+        to: updates.email,
+        subject: 'Email Change Verification - SouvenirHub',
+        html: `
+          <p>Hello ${user.name},</p>
+          <p>You have requested to change your email address.</p>
+          <p>Please enter the following verification code:</p>
+          <h2>${code}</h2>
+          <p>This code will expire in 15 minutes.</p>
+        `
+      });
+
+      // Do not assign email directly
+      delete updates.email;
+    }
+
+    Object.assign(user, updates);
+    await user.save();
+
+    res.json({ message: 'Profile updated. If you changed your email, please verify it.' });
   } catch (err) {
     console.error('Update profile error:', err);
     res.status(500).json({ error: 'Failed to update profile' });
   }
 };
+
+
 
 exports.changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body;

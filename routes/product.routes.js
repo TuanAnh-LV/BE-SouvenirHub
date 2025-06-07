@@ -212,32 +212,6 @@ router.get('/search', productController.searchProducts);
 
 /**
  * @swagger
- * /api/products/filter:
- *   get:
- *     summary: Filter products by price and rating
- *     tags: [Products]
- *     parameters:
- *       - in: query
- *         name: priceMin
- *         schema:
- *           type: number
- *       - in: query
- *         name: priceMax
- *         schema:
- *           type: number
- *       - in: query
- *         name: rating
- *         schema:
- *           type: number
- *     responses:
- *       200:
- *         description: Filtered products
- */
-router.get('/filter', productController.filterProducts);
-
-
-/**
- * @swagger
  * /api/products:
  *   post:
  *     summary: Create a product
