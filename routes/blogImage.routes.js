@@ -7,7 +7,7 @@ const {
   deleteImageById,
   deleteImagesByBlog,
 } = require("../controllers/blogImage.controller");
-const { verifyToken, requireRole } = require("../middlewares/auth.middleware");
+const { verifyToken } = require("../middlewares/auth.middleware");
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
@@ -15,7 +15,7 @@ const upload = multer({ storage });
  * @swagger
  * tags:
  *   name: BlogImages
- *   description: Upload blog images
+ *   description: Quản lý ảnh blog
  */
 
 /**
@@ -24,6 +24,8 @@ const upload = multer({ storage });
  *   post:
  *     summary: Upload images for a blog
  *     tags: [BlogImages]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: blogId
@@ -42,12 +44,9 @@ const upload = multer({ storage });
  *                 items:
  *                   type: string
  *                   format: binary
- *                 description: Upload image files (multiple)
  *     responses:
  *       201:
  *         description: Images uploaded successfully
- *       500:
- *         description: Upload failed
  */
 router.post(
   "/:blogId",
@@ -56,60 +55,62 @@ router.post(
   uploadBlogImages
 );
 
-// /**
-//  * @swagger
-//  * /api/blog-images/{blogId}:
-//  *   get:
-//  *     summary: Get all images for a blog
-//  *     tags: [BlogImages]
-//  *     parameters:
-//  *       - in: path
-//  *         name: blogId
-//  *         required: true
-//  *         schema:
-//  *           type: string
-//  *     responses:
-//  *       200:
-//  *         description: List of image URLs
-//  */
-// router.get("/:blogId", getImagesByBlog);
+/**
+ * @swagger
+ * /api/blog-images/{blogId}:
+ *   get:
+ *     summary: Lấy tất cả ảnh của blog
+ *     tags: [BlogImages]
+ *     parameters:
+ *       - in: path
+ *         name: blogId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Danh sách ảnh
+ */
+router.get("/:blogId", getImagesByBlog);
 
-// /**
-//  * @swagger
-//  * /api/blog-images/image/{imageId}:
-//  *   delete:
-//  *     summary: Delete a specific image by ID
-//  *     tags: [BlogImages]
-//  *     parameters:
-//  *       - in: path
-//  *         name: imageId
-//  *         required: true
-//  *         schema:
-//  *           type: string
-//  *     responses:
-//  *       200:
-//  *         description: Image deleted
-//  *       404:
-//  *         description: Image not found
-//  */
-// router.delete("/image/:imageId", deleteImageById);
+/**
+ * @swagger
+ * /api/blog-images/image/{imageId}:
+ *   delete:
+ *     summary: Xóa ảnh blog theo ID
+ *     tags: [BlogImages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: imageId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ */
+router.delete("/image/:imageId", verifyToken, deleteImageById);
 
-// /**
-//  * @swagger
-//  * /api/blog-images/blog/{blogId}:
-//  *   delete:
-//  *     summary: Delete all images of a blog
-//  *     tags: [BlogImages]
-//  *     parameters:
-//  *       - in: path
-//  *         name: blogId
-//  *         required: true
-//  *         schema:
-//  *           type: string
-//  *     responses:
-//  *       200:
-//  *         description: All images deleted
-//  */
-// router.delete("/blog/:blogId", deleteImagesByBlog);
+/**
+ * @swagger
+ * /api/blog-images/blog/{blogId}:
+ *   delete:
+ *     summary: Xóa tất cả ảnh của blog
+ *     tags: [BlogImages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: blogId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ */
+router.delete("/blog/:blogId", verifyToken, deleteImagesByBlog);
 
 module.exports = router;
