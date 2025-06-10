@@ -1,7 +1,7 @@
-const Product = require('../models/product.model');
-const Shop = require('../models/shop.model'); 
-const ProductImage = require('../models/productImage.model');
-const sanitizeHtml = require('sanitize-html');
+const Product = require("../models/product.model");
+const Shop = require("../models/shop.model");
+const ProductImage = require("../models/productImage.model");
+const sanitizeHtml = require("sanitize-html");
 
 exports.getAll = async (req, res) => {
   try {
@@ -13,14 +13,14 @@ exports.getAll = async (req, res) => {
       status,
       page = 1,
       limit = 10,
-      sortBy = 'created_at',
-      sortOrder = 'desc',
+      sortBy = "created_at",
+      sortOrder = "desc",
     } = req.query;
 
     let filter = {};
 
     if (name) {
-      filter.name = { $regex: name, $options: 'i' };
+      filter.name = { $regex: name, $options: "i" };
     }
 
     if (status) {
@@ -34,7 +34,7 @@ exports.getAll = async (req, res) => {
     }
 
     const sortOptions = {
-      [sortBy]: sortOrder === 'asc' ? 1 : -1,
+      [sortBy]: sortOrder === "asc" ? 1 : -1,
     };
 
     const skip = (Number(page) - 1) * Number(limit);
@@ -46,22 +46,22 @@ exports.getAll = async (req, res) => {
       const basePipeline = [
         {
           $lookup: {
-            from: 'categories',
-            localField: 'category_id',
-            foreignField: '_id',
-            as: 'category',
+            from: "categories",
+            localField: "category_id",
+            foreignField: "_id",
+            as: "category",
           },
         },
-        { $unwind: '$category' },
+        { $unwind: "$category" },
         {
           $match: {
             ...filter,
-            'category.name': { $regex: category, $options: 'i' },
+            "category.name": { $regex: category, $options: "i" },
           },
-        }
+        },
       ];
 
-      const countPipeline = [...basePipeline, { $count: 'total' }];
+      const countPipeline = [...basePipeline, { $count: "total" }];
       const countResult = await Product.aggregate(countPipeline);
       total = countResult[0]?.total || 0;
 
@@ -69,13 +69,13 @@ exports.getAll = async (req, res) => {
         ...basePipeline,
         {
           $lookup: {
-            from: 'shops',
-            localField: 'shop_id',
-            foreignField: '_id',
-            as: 'shop',
+            from: "shops",
+            localField: "shop_id",
+            foreignField: "_id",
+            as: "shop",
           },
         },
-        { $unwind: '$shop' },
+        { $unwind: "$shop" },
         { $sort: sortOptions },
         { $skip: skip },
         { $limit: Number(limit) },
@@ -84,8 +84,8 @@ exports.getAll = async (req, res) => {
       total = await Product.countDocuments(filter);
 
       products = await Product.find(filter)
-        .populate({ path: 'category_id', select: 'name' })
-        .populate({ path: 'shop_id', select: 'name' })
+        .populate({ path: "category_id", select: "name" })
+        .populate({ path: "shop_id", select: "name" })
         .sort(sortOptions)
         .skip(skip)
         .limit(Number(limit));
@@ -95,7 +95,8 @@ exports.getAll = async (req, res) => {
     const images = await ProductImage.find({ product_id: { $in: productIds } });
 
     const productsWithImages = products.map((product) => {
-      const plain = typeof product.toObject === 'function' ? product.toObject() : product;
+      const plain =
+        typeof product.toObject === "function" ? product.toObject() : product;
       const productId = plain._id?.toString();
 
       const productImages = images
@@ -124,28 +125,37 @@ exports.getAll = async (req, res) => {
 
     res.json({ items: productsWithImages, total });
   } catch (err) {
-    console.error('Error fetching products:', err);
-    res.status(500).json({ error: 'PRODUCT_FETCH_FAILED', message: err.message });
+    console.error("Error fetching products:", err);
+    res
+      .status(500)
+      .json({ error: "PRODUCT_FETCH_FAILED", message: err.message });
   }
 };
-
 
 exports.getProductsByCategory = async (req, res) => {
   try {
     const products = await Product.find({ category_id: req.params.categoryId });
     res.json(products);
   } catch (err) {
-    res.status(500).json({ error: 'PRODUCT_FETCH_FAILED', message: 'Failed to fetch products by category' });
+    res.status(500).json({
+      error: "PRODUCT_FETCH_FAILED",
+      message: "Failed to fetch products by category",
+    });
   }
 };
 
 exports.searchProducts = async (req, res) => {
   try {
-    const query = req.query.q || '';
-    const products = await Product.find({ name: { $regex: query, $options: 'i' } });
+    const query = req.query.q || "";
+    const products = await Product.find({
+      name: { $regex: query, $options: "i" },
+    });
     res.json(products);
   } catch (err) {
-    res.status(500).json({ error: 'PRODUCT_FETCH_FAILED', message: 'Failed to search products' });
+    res.status(500).json({
+      error: "PRODUCT_FETCH_FAILED",
+      message: "Failed to search products",
+    });
   }
 };
 
@@ -153,33 +163,42 @@ exports.searchProducts = async (req, res) => {
 exports.getById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
-      .populate({ path: 'category_id', select: 'name' })
-      .populate({ path: 'shop_id', select: 'name' });
+      .populate({ path: "category_id", select: "name" })
+      .populate({ path: "shop_id", select: "name" });
 
-    if (!product) return res.status(404).json({ error: 'Product not found' });
+    if (!product) return res.status(404).json({ error: "Product not found" });
 
     const images = await ProductImage.find({ product_id: product._id });
-    const imageUrls = images.map(img => img.url);
+    const imageUrls = images.map((img) => img.url);
 
     res.json({ ...product.toObject(), images: imageUrls });
   } catch (err) {
-    console.error('Error fetching product by ID:', err);
-    res.status(500).json({ error: 'PRODUCT_FETCH_FAILED', message: 'Failed to fetch product' });
+    console.error("Error fetching product by ID:", err);
+    res.status(500).json({
+      error: "PRODUCT_FETCH_FAILED",
+      message: "Failed to fetch product",
+    });
   }
 };
-
 
 exports.create = async (req, res) => {
   try {
     const shop = await Shop.findOne({ user_id: req.user.id });
-    if (!shop) return res.status(400).json({ message: 'You don\'t have a shop' });
+    if (!shop)
+      return res.status(400).json({ message: "You don't have a shop" });
 
     const cleanDescription = sanitizeHtml(req.body.description, {
-      allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'u', 'iframe']),
+      allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+        "img",
+        "h1",
+        "h2",
+        "u",
+        "iframe",
+      ]),
       allowedAttributes: {
-        '*': ['style', 'class', 'href', 'src', 'alt', 'title'],
-        iframe: ['src', 'allowfullscreen', 'width', 'height'],
-      }
+        "*": ["style", "class", "href", "src", "alt", "title"],
+        iframe: ["src", "allowfullscreen", "width", "height"],
+      },
     });
 
     const product = new Product({
@@ -192,31 +211,42 @@ exports.create = async (req, res) => {
     await product.save();
     res.status(201).json(product);
   } catch (err) {
-    console.error('Product create error:', err);
-    res.status(400).json({ error: 'PRODUCT_CREATE_FAILED', message: 'Failed to create product' });
+    console.error("Product create error:", err);
+    res.status(400).json({
+      error: "PRODUCT_CREATE_FAILED",
+      message: "Failed to create product",
+    });
   }
 };
-
 
 exports.update = async (req, res) => {
   try {
     // Tìm shop của user hiện tại
     const shop = await Shop.findOne({ user_id: req.user.id });
-    if (!shop) return res.status(403).json({ error: 'Bạn không có quyền sửa sản phẩm này' });
+    if (!shop)
+      return res
+        .status(403)
+        .json({ error: "Bạn không có quyền sửa sản phẩm này" });
 
     const cleanDescription = req.body.description
       ? sanitizeHtml(req.body.description, {
-          allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'u', 'iframe']),
+          allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+            "img",
+            "h1",
+            "h2",
+            "u",
+            "iframe",
+          ]),
           allowedAttributes: {
-            '*': ['style', 'class', 'href', 'src', 'alt', 'title'],
-            iframe: ['src', 'allowfullscreen', 'width', 'height'],
-          }
+            "*": ["style", "class", "href", "src", "alt", "title"],
+            iframe: ["src", "allowfullscreen", "width", "height"],
+          },
         })
       : undefined;
 
     const updateData = {
       ...req.body,
-      ...(cleanDescription && { description: cleanDescription })
+      ...(cleanDescription && { description: cleanDescription }),
     };
 
     // Sửa lại điều kiện tìm kiếm
@@ -226,22 +256,62 @@ exports.update = async (req, res) => {
       { new: true }
     );
 
-    if (!updated) return res.status(404).json({ error: 'Product not found or unauthorized' });
+    if (!updated)
+      return res
+        .status(404)
+        .json({ error: "Product not found or unauthorized" });
 
     res.json(updated);
   } catch (err) {
-    console.error('Product update error:', err);
-    res.status(400).json({ error: 'PRODUCT_UPDATE_FAILED', message: 'Failed to update product' });
+    console.error("Product update error:", err);
+    res.status(400).json({
+      error: "PRODUCT_UPDATE_FAILED",
+      message: "Failed to update product",
+    });
   }
 };
-
 
 exports.remove = async (req, res) => {
   try {
-    const removed = await Product.findOneAndDelete({ _id: req.params.id, shop_id: req.user.id });
-    if (!removed) return res.status(404).json({ error: 'Product not found or unauthorized' });
-    res.json({ message: 'Product deleted' });
+    const removed = await Product.findOneAndDelete({
+      _id: req.params.id,
+      shop_id: req.user.id,
+    });
+    if (!removed)
+      return res
+        .status(404)
+        .json({ error: "Product not found or unauthorized" });
+    res.json({ message: "Product deleted" });
   } catch (err) {
-    res.status(400).json({ error: 'PRODUCT_DELETE_FAILED', message: 'Failed to delete product' });
+    res.status(400).json({
+      error: "PRODUCT_DELETE_FAILED",
+      message: "Failed to delete product",
+    });
   }
 };
+
+// exports.updateStock = async (req, res) => {
+//   try {
+//     const { product_id, quantity } = req.body;
+
+//     if (quantity < 0) {
+//       return res.status(400).json({ error: "Invalid quantity" });
+//     }
+
+//     const product = await Product.findById(product_id);
+//     if (!product) return res.status(404).json({ error: "Product not found" });
+
+//     product.stock += quantity;
+//     await product.save();
+
+//     res.json({ message: "Product stock updated", product });
+//   } catch (err) {
+//     console.error("Error updating product stock:", err);
+//     res
+//       .status(500)
+//       .json({
+//         error: "PRODUCT_UPDATE_FAILED",
+//         message: "Failed to update product stock",
+//       });
+//   }
+// };
