@@ -13,7 +13,9 @@ exports.createOrder = async (req, res) => {
     for (const item of items) {
       const product = await Product.findById(item.product_id);
       if (!product || product.stock < item.quantity) {
-        return res.status(400).json({ error: `Product ${item.product_id} unavailable or out of stock` });
+        return res.status(400).json({
+          error: `Product ${item.product_id} unavailable or out of stock`,
+        });
       }
 
       const itemTotal = parseFloat(product.price.toString()) * item.quantity;
@@ -22,11 +24,11 @@ exports.createOrder = async (req, res) => {
       orderItems.push({
         product_id: item.product_id,
         quantity: item.quantity,
-        price: product.price
+        price: product.price,
       });
 
       await Product.findByIdAndUpdate(item.product_id, {
-        $inc: { stock: -item.quantity }
+        $inc: { stock: -item.quantity },
       });
     }
 
@@ -37,16 +39,22 @@ exports.createOrder = async (req, res) => {
       voucher = await Voucher.findOne({
         _id: voucher_id,
         quantity: { $gt: 0 },
-        expires_at: { $gt: new Date() }
+        expires_at: { $gt: new Date() },
       });
       if (!voucher) {
-        return res.status(400).json({ error: 'Voucher không hợp lệ hoặc đã hết hạn/số lượng' });
+        return res
+          .status(400)
+          .json({ error: "Voucher không hợp lệ hoặc đã hết hạn/số lượng" });
       }
       // Kiểm tra điều kiện giá trị đơn hàng tối thiểu
       if (voucher.min_order_value && total_price < voucher.min_order_value) {
-        return res.status(400).json({ error: `Đơn hàng phải từ ${voucher.min_order_value}đ mới được áp dụng voucher này` });
+        return res
+          .status(400)
+          .json({
+            error: `Đơn hàng phải từ ${voucher.min_order_value}đ mới được áp dụng voucher này`,
+          });
       }
-      if (voucher.type === 'percent') {
+      if (voucher.type === "percent") {
         discountAmount = total_price * (voucher.discount / 100);
         // Nếu có max_discount thì không giảm quá số này
         if (voucher.max_discount && discountAmount > voucher.max_discount) {
@@ -67,7 +75,7 @@ exports.createOrder = async (req, res) => {
       user_id: req.user.id,
       shipping_address_id,
       total_price,
-      status: 'pending'
+      status: "pending",
     });
     await order.save();
 
@@ -76,17 +84,16 @@ exports.createOrder = async (req, res) => {
     }
 
     res.status(201).json({
-      message: 'Order placed successfully',
+      message: "Order placed successfully",
       order_id: order._id,
       discount: discountAmount,
-      voucher: voucher ? voucher._id : null
+      voucher: voucher ? voucher._id : null,
     });
   } catch (err) {
-    console.error('Order Error:', err);
-    res.status(500).json({ error: 'Failed to place order' });
+    console.error("Order Error:", err);
+    res.status(500).json({ error: "Failed to place order" });
   }
 };
-
 
 exports.getMyOrders = async (req, res) => {
   try {
@@ -101,8 +108,8 @@ exports.getMyOrders = async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    console.error('Error fetching orders with items:', err);
-    res.status(500).json({ error: 'Failed to fetch orders' });
+    console.error("Error fetching orders with items:", err);
+    res.status(500).json({ error: "Failed to fetch orders" });
   }
 };
 
@@ -119,21 +126,26 @@ exports.getOrderById = async (req, res) => {
 
     res.json({ ...order.toObject(), items });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch order' });
+    res.status(500).json({ error: "Failed to fetch order" });
   }
 };
 
 // Hủy đơn hàng (chỉ khi còn trạng thái "pending")
 exports.cancelOrder = async (req, res) => {
   try {
-    const order = await Order.findOne({ _id: req.params.id, user_id: req.user.id });
+    const order = await Order.findOne({
+      _id: req.params.id,
+      user_id: req.user.id,
+    });
 
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-    if (order.status !== 'pending') {
-      return res.status(400).json({ error: 'Only pending orders can be cancelled' });
+    if (!order) return res.status(404).json({ error: "Order not found" });
+    if (order.status !== "pending") {
+      return res
+        .status(400)
+        .json({ error: "Only pending orders can be cancelled" });
     }
 
-    order.status = 'cancelled';
+    order.status = "cancelled";
     await order.save();
 
     // Hoàn lại stock và giảm sold
@@ -147,10 +159,10 @@ exports.cancelOrder = async (req, res) => {
       }
     }
 
-    res.json({ message: 'Order cancelled' });
+    res.json({ message: "Order cancelled" });
   } catch (err) {
-    console.error('Cancel order error:', err);
-    res.status(500).json({ error: 'Failed to cancel order' });
+    console.error("Cancel order error:", err);
+    res.status(500).json({ error: "Failed to cancel order" });
   }
 };
 
@@ -158,31 +170,108 @@ exports.cancelOrder = async (req, res) => {
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const allowedStatuses = ['pending', 'processing', 'shipped', 'completed', 'cancelled'];
+    const allowedStatuses = [
+      "pending",
+      "processing",
+      "shipped",
+      "completed",
+      "cancelled",
+    ];
 
     if (!allowedStatuses.includes(status)) {
-      return res.status(400).json({ error: 'Invalid status' });
+      return res.status(400).json({ error: "Invalid status" });
     }
 
     const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (!order) return res.status(404).json({ error: "Order not found" });
 
     order.status = status;
     await order.save();
 
     // 👉 Chỉ tăng sold khi đơn hoàn thành
-    if (status === 'completed') {
+    if (status === "completed") {
       const orderItems = await OrderItem.find({ order_id: order._id });
       for (const item of orderItems) {
         await Product.findByIdAndUpdate(item.product_id, {
-          $inc: { sold: item.quantity }
+          $inc: { sold: item.quantity },
         });
       }
     }
 
-    res.json({ message: 'Order status updated', order });
+    res.json({ message: "Order status updated", order });
   } catch (err) {
-    console.error('Update status error:', err);
-    res.status(500).json({ error: 'Failed to update order status' });
+    console.error("Update status error:", err);
+    res.status(500).json({ error: "Failed to update order status" });
+  }
+};
+
+exports.updateQuantity = async (req, res) => {
+  try {
+    const { product_id, quantity } = req.body;
+
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ error: "Order not found" });
+    if (order.user_id.toString() !== req.user.id)
+      return res.status(403).json({ error: "You do not have permission" });
+    if (order.status !== "pending")
+      return res
+        .status(400)
+        .json({ error: "Only pending orders can be updated" });
+
+    const orderItem = await OrderItem.findOne({
+      order_id: order._id,
+      product_id,
+    });
+    if (!orderItem)
+      return res.status(404).json({ error: "Order item not found" });
+
+    if (quantity <= 0)
+      return res.status(400).json({ error: "Quantity must be greater than 0" });
+
+    const product = await Product.findById(product_id);
+    if (!product) return res.status(404).json({ error: "Product not found" });
+
+    const oldQuantity = orderItem.quantity;
+    const delta = quantity - oldQuantity;
+
+    // Kiểm tra tồn kho nếu tăng
+    if (delta > 0 && product.stock < delta) {
+      return res.status(400).json({
+        error: `Not enough stock to increase quantity for product ${product_id}`,
+      });
+    }
+
+    // Cập nhật số lượng item
+    orderItem.quantity = quantity;
+    await orderItem.save();
+
+    // Cập nhật stock sản phẩm
+    await Product.findByIdAndUpdate(product_id, {
+      $inc: { stock: -delta },
+    });
+
+    //Tính lại tổng tiền của tất cả các order item
+    const allItems = await OrderItem.find({ order_id: order._id }).populate(
+      "product_id"
+    );
+
+    let newTotal = 0;
+    for (const item of allItems) {
+      const itemPrice = parseFloat(item.price.toString()); // item.price hoặc item.product_id.price
+      newTotal += itemPrice * item.quantity;
+    }
+
+    // Cập nhật total_price
+    order.total_price = Decimal128.fromString(newTotal.toString());
+    await order.save();
+
+    res.json({
+      message: "Order item quantity updated successfully",
+      orderItem,
+      total_price: newTotal,
+    });
+  } catch (err) {
+    console.error("Update quantity error:", err);
+    res.status(500).json({ error: "Failed to update order item quantity" });
   }
 };
