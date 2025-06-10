@@ -1,8 +1,8 @@
 // routes/seller.routes.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const sellerController = require('../controllers/seller.controller');
-const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
+const sellerController = require("../controllers/seller.controller");
+const { verifyToken, requireRole } = require("../middlewares/auth.middleware");
 
 /**
  * @swagger
@@ -14,16 +14,62 @@ const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
 /**
  * @swagger
  * /api/seller/orders:
- *   get:
+ *   post:
  *     summary: Get orders for seller's products
  *     tags: [Seller]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Filter orders by product name (optional)
  *     responses:
  *       200:
  *         description: Orders related to seller
  */
-router.get('/orders', verifyToken, requireRole(['seller']), sellerController.getShopOrders);
+router.post(
+  "/orders",
+  verifyToken,
+  requireRole(["seller"]),
+  sellerController.getShopOrders
+);
+// /**
+//  * @swagger
+//  * /api/seller/orders:
+//  *   post:
+//  *     summary: Get orders for seller's products, optionally filtered by product name
+//  *     tags: [Seller]
+//  *     security:
+//  *       - bearerAuth: []
+//  *     requestBody:
+//  *       required: false
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               productName:
+//  *                 type: string
+//  *                 description: Name of the product to filter orders by
+//  *                 example: "Áo thun tay lỡ"
+//  *     responses:
+//  *       200:
+//  *         description: Orders related to seller
+//  *       500:
+//  *         description: Server error
+//  */
+// router.post(
+//   "/orders",
+//   verifyToken,
+//   requireRole(["seller"]),
+//   sellerController.getShopOrders
+// );
 
 /**
  * @swagger
@@ -49,7 +95,12 @@ router.get('/orders', verifyToken, requireRole(['seller']), sellerController.get
  *       200:
  *         description: Order status updated
  */
-router.put('/orders/status', verifyToken, requireRole(['seller']), sellerController.updateOrderStatus);
+router.put(
+  "/orders/status",
+  verifyToken,
+  requireRole(["seller"]),
+  sellerController.updateOrderStatus
+);
 
 /**
  * @swagger
@@ -88,7 +139,11 @@ router.put('/orders/status', verifyToken, requireRole(['seller']), sellerControl
  *                         type: integer
  *                         example: 25
  */
-router.get('/stats', verifyToken, requireRole(['seller']), sellerController.getSellerStats);
-
+router.get(
+  "/stats",
+  verifyToken,
+  requireRole(["seller"]),
+  sellerController.getSellerStats
+);
 
 module.exports = router;

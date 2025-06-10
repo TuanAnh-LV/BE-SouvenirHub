@@ -1,10 +1,13 @@
 // routes/category.routes.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const categoryController = require('../controllers/category.controller');
-const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
-const { createCategoryValidator, updateCategoryValidator } = require('../validators/category.validator');
-const { validate } = require('../middlewares/validate.middleware');
+const categoryController = require("../controllers/category.controller");
+const { verifyToken, requireRole } = require("../middlewares/auth.middleware");
+const {
+  createCategoryValidator,
+  updateCategoryValidator,
+} = require("../validators/category.validator");
+const { validate } = require("../middlewares/validate.middleware");
 /**
  * @swagger
  * tags:
@@ -15,14 +18,24 @@ const { validate } = require('../middlewares/validate.middleware');
 /**
  * @swagger
  * /api/categories:
- *   get:
- *     summary: Get all categories
+ *   post:
+ *     summary: Get all categories, optionally filter by name
  *     tags: [Categories]
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Filter categories by name substring
  *     responses:
  *       200:
  *         description: List of categories
  */
-router.get('/', categoryController.getAll);
+router.post("/get", categoryController.getAll);
 
 /**
  * @swagger
@@ -47,7 +60,14 @@ router.get('/', categoryController.getAll);
  *       201:
  *         description: Category created
  */
-router.post('/', verifyToken, requireRole(['admin']),createCategoryValidator, validate, categoryController.create);
+router.post(
+  "/",
+  verifyToken,
+  requireRole(["admin"]),
+  createCategoryValidator,
+  validate,
+  categoryController.create
+);
 
 /**
  * @swagger
@@ -78,7 +98,14 @@ router.post('/', verifyToken, requireRole(['admin']),createCategoryValidator, va
  *       200:
  *         description: Category updated
  */
-router.put('/:id', verifyToken,requireRole(['admin']), updateCategoryValidator, validate, categoryController.update);
+router.put(
+  "/:id",
+  verifyToken,
+  requireRole(["admin"]),
+  updateCategoryValidator,
+  validate,
+  categoryController.update
+);
 
 /**
  * @swagger
@@ -98,6 +125,11 @@ router.put('/:id', verifyToken,requireRole(['admin']), updateCategoryValidator, 
  *       200:
  *         description: Category deleted
  */
-router.delete('/:id', verifyToken, requireRole(['admin']), categoryController.remove);
+router.delete(
+  "/:id",
+  verifyToken,
+  requireRole(["admin"]),
+  categoryController.remove
+);
 
 module.exports = router;
