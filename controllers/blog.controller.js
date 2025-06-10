@@ -28,7 +28,8 @@ const streamUpload = (fileBuffer) => {
 
 exports.createBlog = async (req, res) => {
   try {
-    const cleanContent = sanitizeHtml(req.body.content, {
+
+      const cleanContent = sanitizeHtml(req.body.content, {
       allowedTags: sanitizeHtml.defaults.allowedTags.concat([
         "img",
         "h1",
@@ -60,6 +61,19 @@ exports.createBlog = async (req, res) => {
     });
   }
 };
+
+exports.getMyBlogs = async (req, res) => {
+  try {
+    console.log('>>>>>>>>>>>>>>>>>>>>>>>>>>getMyBlogs called');
+    const blogs = await Blog.find({ user: req.user.id })
+      .populate("user", "name");
+    // ... tương tự đoạn trên
+    res.json(blogs);
+  } catch (err) {
+    res.status(500).json({ error: "BLOG_FETCH_MY_FAILED", message: err.message });
+  }
+};
+
 
 exports.getAllBlogs = async (req, res) => {
   try {
@@ -149,3 +163,4 @@ exports.deleteBlog = async (req, res) => {
     res.status(500).json({ error: "BLOG_DELETE_FAILED", message: err.message });
   }
 };
+

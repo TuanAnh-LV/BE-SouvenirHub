@@ -5,6 +5,21 @@ const { verifyToken, requireRole } = require("../middlewares/auth.middleware");
 
 /**
  * @swagger
+ * /api/blogs/my:
+ *   get:
+ *     summary: Lấy tất cả blog của người đang đăng nhập (kèm ảnh)
+ *     tags: [Blogs]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách blog
+ */
+router.get("/my", verifyToken, blogController.getMyBlogs);
+
+
+/**
+ * @swagger
  * tags:
  *   name: Blogs
  *   description: Quản lý blog
@@ -71,7 +86,7 @@ router.get("/:id", blogController.getBlogById);
  *       201:
  *         description: Tạo thành công
  */
-router.post("/", verifyToken, requireRole(['seller, admin']), blogController.createBlog);
+router.post("/", verifyToken, blogController.createBlog);
 
 /**
  * @swagger
@@ -97,7 +112,7 @@ router.post("/", verifyToken, requireRole(['seller, admin']), blogController.cre
  *       200:
  *         description: Cập nhật thành công
  */
-router.put("/:id", verifyToken, requireRole(['seller, admin']), blogController.updateBlog);
+router.put("/:id", verifyToken, blogController.updateBlog);
 
 /**
  * @swagger
@@ -117,6 +132,9 @@ router.put("/:id", verifyToken, requireRole(['seller, admin']), blogController.u
  *       200:
  *         description: Xóa thành công
  */
-router.delete("/:id", verifyToken, requireRole(['seller, admin']), blogController.deleteBlog);
+router.delete("/:id", verifyToken, blogController.deleteBlog);
+
+
+
 
 module.exports = router;
