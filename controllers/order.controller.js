@@ -1,9 +1,9 @@
 // controllers/order.controller.js
-const Order = require("../models/order.model");
-const OrderItem = require("../models/orderItem.model");
-const Product = require("../models/product.model");
-const Voucher = require("../models/voucher.model");
-
+const Order = require('../models/order.model');
+const OrderItem = require('../models/orderItem.model');
+const Product = require('../models/product.model');
+const Voucher = require('../models/voucher.model');
+const { enrichOrderItems } = require('../utils/enrichOrder');
 exports.createOrder = async (req, res) => {
   try {
     const { items, shipping_address_id, voucher_id } = req.body; // đổi voucher_code thành voucher_id
@@ -97,35 +97,13 @@ exports.createOrder = async (req, res) => {
 
 exports.getMyOrders = async (req, res) => {
   try {
-    const { name } = req.body;
-
-    // 1. Tìm tất cả đơn hàng của user
-    const orders = await Order.find({ user_id: req.user.id }).sort({
-      created_at: -1,
-    });
-
+    const orders = await Order.find({ user_id: req.user.id }).sort({ created_at: -1 });
     const result = [];
 
     for (const order of orders) {
-      // 2. Tìm tất cả item của order và populate product
-      const items = await OrderItem.find({ order_id: order._id }).populate(
-        "product_id"
-      );
-
-      // 3. Nếu có truyền name, thì lọc items theo tên sản phẩm
-      const filteredItems = name
-        ? items.filter((item) =>
-            item.product_id?.name?.toLowerCase().includes(name.toLowerCase())
-          )
-        : items;
-
-      // 4. Nếu có item sau khi lọc (hoặc không lọc), thêm vào kết quả
-      if (filteredItems.length > 0) {
-        result.push({
-          ...order.toObject(),
-          items: filteredItems,
-        });
-      }
+      const rawItems = await OrderItem.find({ order_id: order._id }).populate('product_id');
+      const items = await enrichOrderItems(rawItems);
+      result.push({ ...order.toObject(), items });
     }
 
     res.json(result);
@@ -141,12 +119,12 @@ exports.getOrderById = async (req, res) => {
       _id: req.params.id,
       user_id: req.user.id,
     });
-    if (!order) return res.status(404).json({ error: "Order not found" });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
 
-    const items = await OrderItem.find({ order_id: order._id }).populate(
-      "product_id"
-    );
-    res.json({ order, items });
+    const rawItems = await OrderItem.find({ order_id: order._id }).populate('product_id');
+    const items = await enrichOrderItems(rawItems);
+
+    res.json({ ...order.toObject(), items });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch order" });
   }

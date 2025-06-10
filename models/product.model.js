@@ -8,6 +8,7 @@ const productSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: String,
   price: { type: mongoose.Types.Decimal128, required: true },
+  discount: { type: Number, default: 0, min: 0, max: 100 }, 
   stock: { type: Number, default: 0 },
   status: {
     type: String,
@@ -18,17 +19,16 @@ const productSchema = new mongoose.Schema({
   specialNotes: { type: String, default: '' },
   averageRating: { type: Number, default: 0, min: 0, max: 5 },
   reviewCount: { type: Number, default: 0 },
-  sold: {
-    type: Number,
-    default: 0
-  },
+  sold: { type: Number, default: 0 },
   created_at: { type: Date, default: Date.now }
 });
+
 
 module.exports = mongoose.model('Product', productSchema);
 productSchema.set('toJSON', {
   transform: (doc, ret) => {
     ret.price = parseFloat(ret.price.toString());
+    ret.finalPrice = +(ret.price * (1 - ret.discount / 100)).toFixed(2); 
     return ret;
   }
 });
