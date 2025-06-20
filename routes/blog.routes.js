@@ -31,11 +31,28 @@ router.get("/my", verifyToken, blogController.getMyBlogs);
  *   get:
  *     summary: Lấy tất cả blog (kèm ảnh)
  *     tags: [Blogs]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Trang hiện tại (mặc định 1)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Số lượng blog trên mỗi trang (mặc định 10)
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *         description: Từ khóa tìm kiếm
  *     responses:
  *       200:
  *         description: Danh sách blog
  */
 router.get("/", blogController.getAllBlogs);
+
 
 /**
  * @swagger

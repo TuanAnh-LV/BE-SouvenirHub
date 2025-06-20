@@ -43,6 +43,7 @@ exports.uploadBlogImages = async (req, res) => {
         const savedImage = new BlogImage({
           blog_id: blogId,
           url: result.secure_url,
+          public_id: result.public_id,
         });
 
         await savedImage.save();
@@ -72,18 +73,29 @@ exports.deleteImageById = async (req, res) => {
     const { imageId } = req.params;
     const image = await BlogImage.findByIdAndDelete(imageId);
     if (!image) return res.status(404).json({ error: "Image not found" });
+
+    await cloudinary.uploader.destroy(image.public_id);  // Xóa trên Cloudinary
+
     res.json({ message: "Image deleted" });
   } catch (err) {
     res.status(500).json({ error: "Failed to delete image" });
   }
 };
 
+
 exports.deleteImagesByBlog = async (req, res) => {
   try {
     const { blogId } = req.params;
+    const images = await BlogImage.find({ blog_id: blogId });
+
+    for (const img of images) {
+      await cloudinary.uploader.destroy(img.public_id);
+    }
+
     await BlogImage.deleteMany({ blog_id: blogId });
     res.json({ message: "All images deleted" });
   } catch (err) {
     res.status(500).json({ error: "Failed to delete images" });
   }
 };
+
