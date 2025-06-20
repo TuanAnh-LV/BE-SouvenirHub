@@ -123,4 +123,10 @@ app.use("/api/cart", cartRoutes);
 const voucherRoutes = require('./routes/voucher.routes');
 app.use('/api/vouchers', voucherRoutes);
 
+const blogRoutes = require("./routes/blog.routes");
+app.use("/api/blogs", blogRoutes);
+
+const blogImageRoutes = require("./routes/blogImage.routes");
+app.use("/api/blog-images", blogImageRoutes);
+
 module.exports = app;
