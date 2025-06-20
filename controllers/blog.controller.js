@@ -77,19 +77,39 @@ exports.getMyBlogs = async (req, res) => {
 
 exports.getAllBlogs = async (req, res) => {
   try {
-    const blogs = await Blog.find()
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.q || "";
+
+    const query = search
+      ? { $text: { $search: search } }
+      : {};
+
+    const blogs = await Blog.find(query)
       .sort({ created_at: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
       .populate("user", "name");
-    // Lấy images cho từng blog
+
+    const total = await Blog.countDocuments(query);
+
+    // Lấy images
     const blogIds = blogs.map((b) => b._id);
     const images = await BlogImage.find({ blog_id: { $in: blogIds } });
+
     const blogsWithImages = blogs.map((blog) => {
       const blogImages = images.filter(
         (img) => img.blog_id.toString() === blog._id.toString()
       );
       return { ...blog.toObject(), images: blogImages };
     });
-    res.json(blogsWithImages);
+
+    res.json({
+      items: blogsWithImages,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    });
   } catch (err) {
     res.status(500).json({ error: "BLOG_FETCH_FAILED", message: err.message });
   }
@@ -158,6 +178,11 @@ exports.deleteBlog = async (req, res) => {
 
     await Blog.findByIdAndDelete(req.params.id);
     await BlogImage.deleteMany({ blog_id: req.params.id });
+    const images = await BlogImage.find({ blog_id: req.params.id });
+for (const img of images) {
+  await cloudinary.uploader.destroy(img.public_id);
+}
+await BlogImage.deleteMany({ blog_id: req.params.id });
     res.json({ message: "Blog deleted" });
   } catch (err) {
     res.status(500).json({ error: "BLOG_DELETE_FAILED", message: err.message });
