@@ -3,7 +3,7 @@ const Order = require('../models/order.model');
 const OrderItem = require('../models/orderItem.model');
 const Product = require('../models/product.model');
 const Voucher = require('../models/voucher.model');
-
+const { enrichOrderItems } = require('../utils/enrichOrder');
 exports.createOrder = async (req, res) => {
   try {
     const { items, shipping_address_id, voucher_id } = req.body; // đổi voucher_code thành voucher_id
@@ -91,15 +91,12 @@ exports.createOrder = async (req, res) => {
 exports.getMyOrders = async (req, res) => {
   try {
     const orders = await Order.find({ user_id: req.user.id }).sort({ created_at: -1 });
-
     const result = [];
 
     for (const order of orders) {
-      const items = await OrderItem.find({ order_id: order._id }).populate('product_id');
-      result.push({
-        ...order.toObject(),
-        items
-      });
+      const rawItems = await OrderItem.find({ order_id: order._id }).populate('product_id');
+      const items = await enrichOrderItems(rawItems);
+      result.push({ ...order.toObject(), items });
     }
 
     res.json(result);
@@ -111,11 +108,16 @@ exports.getMyOrders = async (req, res) => {
 
 exports.getOrderById = async (req, res) => {
   try {
-    const order = await Order.findOne({ _id: req.params.id, user_id: req.user.id });
+    const order = await Order.findOne({
+      _id: req.params.id,
+      user_id: req.user.id,
+    });
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
-    const items = await OrderItem.find({ order_id: order._id }).populate('product_id');
-    res.json({ order, items });
+    const rawItems = await OrderItem.find({ order_id: order._id }).populate('product_id');
+    const items = await enrichOrderItems(rawItems);
+
+    res.json({ ...order.toObject(), items });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch order' });
   }
