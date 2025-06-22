@@ -186,3 +186,84 @@ exports.updateOrderStatus = async (req, res) => {
     res.status(500).json({ error: 'Failed to update order status' });
   }
 };
+
+exports.updateOrder = async (req, res) => {
+  try {
+    const { shipping_address_id, voucher_id } = req.body;
+    const order = await Order.findOne({ _id: req.params.id, user_id: req.user.id });
+
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.status !== 'pending') {
+      return res.status(400).json({ error: 'Only pending orders can be updated' });
+    }
+
+    // Cập nhật địa chỉ nếu có
+    if (shipping_address_id) order.shipping_address_id = shipping_address_id;
+
+    // Xử lý voucher
+    let discountAmount = 0;
+    let voucher = null;
+    if (voucher_id) {
+      voucher = await Voucher.findOne({
+        _id: voucher_id,
+        quantity: { $gt: 0 },
+        expires_at: { $gt: new Date() }
+      });
+      if (!voucher) {
+        return res.status(400).json({ error: 'Voucher không hợp lệ hoặc đã hết hạn/số lượng' });
+      }
+      // Tính lại total_price
+      const orderItems = await OrderItem.find({ order_id: order._id }).populate('product_id');
+      let total_price = orderItems.reduce((sum, item) => sum + (item.product_id.price * item.quantity), 0);
+
+      if (voucher.min_order_value && total_price < voucher.min_order_value) {
+        return res.status(400).json({ error: `Đơn hàng phải từ ${voucher.min_order_value}đ mới được áp dụng voucher này` });
+      }
+      if (voucher.type === 'percent') {
+        discountAmount = total_price * (voucher.discount / 100);
+        if (voucher.max_discount && discountAmount > voucher.max_discount) {
+          discountAmount = voucher.max_discount;
+        }
+      } else {
+        discountAmount = voucher.discount;
+      }
+      discountAmount = Math.min(discountAmount, total_price);
+      total_price -= discountAmount;
+
+      // Hoàn lại số lượng voucher cũ nếu có
+      if (order.voucher && order.voucher.toString() !== voucher_id) {
+        const oldVoucher = await Voucher.findById(order.voucher);
+        if (oldVoucher) {
+          oldVoucher.quantity += 1;
+          await oldVoucher.save();
+        }
+      }
+
+      // Trừ số lượng voucher mới
+      voucher.quantity -= 1;
+      await voucher.save();
+
+      order.voucher = voucher._id;
+      order.total_price = total_price;
+    } else if (order.voucher) {
+      // Nếu bỏ voucher, hoàn lại số lượng voucher cũ
+      const oldVoucher = await Voucher.findById(order.voucher);
+      if (oldVoucher) {
+        oldVoucher.quantity += 1;
+        await oldVoucher.save();
+      }
+      // Tính lại total_price không voucher
+      const orderItems = await OrderItem.find({ order_id: order._id }).populate('product_id');
+      let total_price = orderItems.reduce((sum, item) => sum + (item.product_id.price * item.quantity), 0);
+      order.voucher = null;
+      order.total_price = total_price;
+    }
+
+    await order.save();
+
+    res.json({ message: 'Order updated', order });
+  } catch (err) {
+    console.error('Update order error:', err);
+    res.status(500).json({ error: 'Failed to update order' });
+  }
+};

@@ -154,5 +154,45 @@ router.patch(
  *         description: Order not found
  */
 
+/**
+ * @swagger
+ * /api/orders/{id}:
+ *   put:
+ *     summary: Update order (address, voucher, total_price) if order is still pending
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the order to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               shipping_address_id:
+ *                 type: string
+ *                 description: New shipping address ID
+ *               voucher_id:
+ *                 type: string
+ *                 description: New voucher ID (optional)
+ *               total_price:
+ *                 type: number
+ *                 description: Total price after voucher (optional, will be validated)
+ *     responses:
+ *       200:
+ *         description: Order updated
+ *       400:
+ *         description: Cannot update non-pending order or invalid voucher or total_price
+ *       404:
+ *         description: Order not found
+ */
+router.put('/:id', verifyToken, orderController.updateOrder);
 
 module.exports = router;

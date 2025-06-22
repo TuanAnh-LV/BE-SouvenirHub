@@ -251,43 +251,58 @@ exports.checkoutFromCart = async (req, res) => {
       return res.status(400).json({ message: "No selected items to checkout" });
     }
 
-    let total_price = 0;
-    const orderItems = [];
-
+    // Group items theo shop_id
+    const itemsByShop = {};
     for (const item of selectedItems) {
-      const product = item.product;
-      if (!product || product.stock < item.quantity) {
-        return res.status(400).json({
-          error: `Product ${product?.name || product?._id} is unavailable or out of stock`,
+      const shopId = item.product.shop_id._id.toString();
+      if (!itemsByShop[shopId]) itemsByShop[shopId] = [];
+      itemsByShop[shopId].push(item);
+    }
+
+    const createdOrders = [];
+
+    for (const [shopId, items] of Object.entries(itemsByShop)) {
+      let total_price = 0;
+      const orderItems = [];
+
+      for (const item of items) {
+        const product = item.product;
+        if (!product || product.stock < item.quantity) {
+          return res.status(400).json({
+            error: `Product ${product?.name || product?._id} is unavailable or out of stock`,
+          });
+        }
+
+        const itemTotal = parseFloat(product.price.toString()) * item.quantity;
+        total_price += itemTotal;
+
+        orderItems.push({
+          product_id: product._id,
+          quantity: item.quantity,
+          price: product.price,
+        });
+
+        // Trừ stock
+        await Product.findByIdAndUpdate(product._id, {
+          $inc: { stock: -item.quantity },
         });
       }
 
-      const itemTotal = parseFloat(product.price.toString()) * item.quantity;
-      total_price += itemTotal;
-
-      orderItems.push({
-        product_id: product._id,
-        quantity: item.quantity,
-        price: product.price,
+      // Tạo order cho shop này
+      const order = new Order({
+        user_id: req.user.id,
+        shop_id: shopId,
+        shipping_address_id,
+        total_price,
+        status: "pending",
       });
+      await order.save();
 
-      // Trừ stock
-      await Product.findByIdAndUpdate(product._id, {
-        $inc: { stock: -item.quantity },
-      });
-    }
+      for (const item of orderItems) {
+        await new OrderItem({ ...item, order_id: order._id }).save();
+      }
 
-    // Tạo order
-    const order = new Order({
-      user_id: req.user.id,
-      shipping_address_id,
-      total_price,
-      status: "pending",
-    });
-    await order.save();
-
-    for (const item of orderItems) {
-      await new OrderItem({ ...item, order_id: order._id }).save();
+      createdOrders.push(order._id);
     }
 
     // Cập nhật giỏ hàng, giữ lại các item chưa được chọn
@@ -297,7 +312,7 @@ exports.checkoutFromCart = async (req, res) => {
     cart.items = remainingItems;
     await cart.save();
 
-    res.status(201).json({ message: "Order created from selected items", order_id: order._id });
+    res.status(201).json({ message: "Orders created from selected items", order_ids: createdOrders });
   } catch (err) {
     console.error("[checkoutFromCart]", err);
     res.status(500).json({ error: "Failed to checkout from cart" });
