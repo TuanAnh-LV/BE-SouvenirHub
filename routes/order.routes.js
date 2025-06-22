@@ -1,9 +1,12 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const orderController = require('../controllers/order.controller');
-const { verifyToken,requireRole } = require('../middlewares/auth.middleware');
-const { createOrderValidator, updateOrderStatusValidator } = require('../validators/order.validator');
-const { validate } = require('../middlewares/validate.middleware');
+const orderController = require("../controllers/order.controller");
+const { verifyToken, requireRole } = require("../middlewares/auth.middleware");
+const {
+  createOrderValidator,
+  updateOrderStatusValidator,
+} = require("../validators/order.validator");
+const { validate } = require("../middlewares/validate.middleware");
 /**
  * @swagger
  * tags:
@@ -42,12 +45,14 @@ const { validate } = require('../middlewares/validate.middleware');
  *         description: Order placed
  */
 router.post(
-    '/',
-    verifyToken,
-    createOrderValidator,
-    validate,
-    orderController.createOrder
-  );
+  "/",
+  verifyToken,
+  createOrderValidator,
+  validate,
+  orderController.createOrder
+);
+
+router.get("/myorders", verifyToken, orderController.getAllOrdersOfMyShop);
 
 /**
  * @swagger
@@ -61,7 +66,7 @@ router.post(
  *       200:
  *         description: List of orders
  */
-router.get('/', verifyToken, orderController.getMyOrders);
+router.get("/", verifyToken, orderController.getMyOrders);
 
 /**
  * @swagger
@@ -81,9 +86,9 @@ router.get('/', verifyToken, orderController.getMyOrders);
  *       200:
  *         description: Order details
  */
-router.get('/:id', verifyToken, orderController.getOrderById);
+router.get("/:id", verifyToken, orderController.getOrderById);
 
-router.put('/:id/cancel', verifyToken, orderController.cancelOrder);
+router.put("/:id/cancel", verifyToken, orderController.cancelOrder);
 /**
  * @swagger
  * /api/orders/{id}/cancel:
@@ -109,14 +114,14 @@ router.put('/:id/cancel', verifyToken, orderController.cancelOrder);
  */
 
 router.patch(
-    '/:id/status',
-    verifyToken,
-    requireRole(['admin', 'seller']),
-    updateOrderStatusValidator,
-    validate,
-    orderController.updateOrderStatus
-  );
-  
+  "/:id/status",
+  verifyToken,
+  requireRole(["admin", "seller"]),
+  updateOrderStatusValidator,
+  validate,
+  orderController.updateOrderStatus
+);
+
 /**
  * @swagger
  * /api/orders/{id}/status:

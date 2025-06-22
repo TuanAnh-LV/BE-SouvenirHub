@@ -128,4 +128,7 @@ app.use("/api/blog-images", blogImageRoutes);
 const voucherRoutes = require("./routes/voucher.routes");
 app.use("/api/vouchers", voucherRoutes);
 
+const bookingRoutes = require("./routes/booking.routes");
+app.use("/api/bookings", bookingRoutes);
+
 module.exports = app;
