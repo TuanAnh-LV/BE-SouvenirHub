@@ -108,6 +108,36 @@ router.put('/:id/cancel', verifyToken, orderController.cancelOrder);
  *         description: Order not found
  */
 
+/**
+ * @swagger
+ * /api/orders/{id}/confirm-received:
+ *   put:
+ *     summary: Khách hàng xác nhận đã nhận hàng
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID của đơn hàng
+ *     responses:
+ *       200:
+ *         description: Đơn hàng đã được xác nhận nhận hàng
+ *       400:
+ *         description: Đơn hàng không hợp lệ để xác nhận
+ *       404:
+ *         description: Không tìm thấy đơn hàng
+ */
+router.put(
+  '/:id/confirm-received',
+  verifyToken,
+  orderController.confirmReceivedByUser
+);
+
+
 router.patch(
     '/:id/status',
     verifyToken,
@@ -116,7 +146,6 @@ router.patch(
     validate,
     orderController.updateOrderStatus
   );
-  
 /**
  * @swagger
  * /api/orders/{id}/status:

@@ -186,3 +186,27 @@ exports.updateOrderStatus = async (req, res) => {
     res.status(500).json({ error: 'Failed to update order status' });
   }
 };
+exports.confirmReceivedByUser = async (req, res) => {
+  try {
+    const order = await Order.findOne({
+      _id: req.params.id,
+      user_id: req.user.id
+    });
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if (order.status !== 'processing') {
+      return res.status(400).json({ error: 'Only processing orders can be confirmed as received' });
+    }
+
+    order.status = 'shipped';
+    await order.save();
+
+    res.json({ message: 'Order marked as shipped (received by customer)', order });
+  } catch (err) {
+    console.error('Error confirming received order:', err);
+    res.status(500).json({ error: 'Failed to confirm received order' });
+  }
+};
