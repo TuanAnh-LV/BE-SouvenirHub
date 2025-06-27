@@ -140,12 +140,9 @@ exports.getShopById = async (req, res) => {
       completedOrders.map((o) => o._id.toString())
     );
 
-    const totalRevenue = orderItems.reduce((sum, item) => {
-      if (completedOrderIds.has(item.order_id.toString())) {
-        return sum + parseFloat(item.price.toString()) * item.quantity;
-      }
-      return sum;
-    }, 0);
+   const totalRevenue = completedOrders.reduce((sum, order) => sum + order.total_price, 0);
+
+   
 
     const totalOrders = completedOrders.length;
     const totalCancelled = orders.filter(
@@ -156,14 +153,7 @@ exports.getShopById = async (req, res) => {
     const revenueByMonth = {};
     for (const order of completedOrders) {
       const monthKey = moment(order.created_at).format("YYYY-MM");
-      revenueByMonth[monthKey] = revenueByMonth[monthKey] || 0;
-      const relatedItems = orderItems.filter(
-        (item) => item.order_id.toString() === order._id.toString()
-      );
-      for (const item of relatedItems) {
-        revenueByMonth[monthKey] +=
-          parseFloat(item.price.toString()) * item.quantity;
-      }
+      revenueByMonth[monthKey] = (revenueByMonth[monthKey] || 0) + order.total_price;
     }
 
     // 🔢 2. Sản phẩm bán chạy nhất

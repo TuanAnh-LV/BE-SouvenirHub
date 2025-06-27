@@ -1,10 +1,16 @@
 const mongoose = require("mongoose");
-const User = require('./user.model')
+const User = require('./user.model');
+
 const CartItemSchema = new mongoose.Schema({
   product: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Product",
     required: true,
+  },
+  variant: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "ProductVariant",
+    required: false, // Có thể không có nếu sản phẩm không có mẫu mã
   },
   quantity: {
     type: Number,

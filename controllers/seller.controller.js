@@ -3,6 +3,9 @@ const OrderItem = require("../models/orderItem.model");
 const Product = require("../models/product.model");
 const Shop = require("../models/shop.model");
 const mongoose = require("mongoose");
+const ProductImage = require("../models/productImage.model");
+const moment = require("moment");
+
 
 exports.getShopOrders = async (req, res) => {
   try {
@@ -55,16 +58,6 @@ exports.getShopOrders = async (req, res) => {
   }
 };
 
-// exports.getShopOrders = async (req, res) => {
-//   try {
-//     const sellerProducts = await Product.find({ shop_id: req.user.id }, '_id');
-//     const productIds = sellerProducts.map(p => p._id);
-//     const orderItems = await OrderItem.find({ product_id: { $in: productIds } }).populate('order_id');
-//     res.json(orderItems);
-//   } catch (err) {
-//     res.status(500).json({ error: 'Failed to get orders for seller' });
-//   }
-// };
 
 exports.updateOrderStatus = async (req, res) => {
   try {
@@ -81,39 +74,76 @@ exports.updateOrderStatus = async (req, res) => {
 
 exports.getSellerStats = async (req, res) => {
   try {
-    const sellerProducts = await Product.find({ shop_id: req.user.id }, "_id");
-    const productIds = sellerProducts.map((p) => p._id);
-    const orders = await OrderItem.find({ product_id: { $in: productIds } });
-    const totalRevenue = orders.reduce(
-      (sum, item) => sum + parseFloat(item.price.toString()) * item.quantity,
-      0
+    const shop = await Shop.findOne({ user_id: req.user.id }).populate(
+      "user_id",
+      "name email"
     );
-    const totalSold = orders.reduce((sum, item) => sum + item.quantity, 0);
+    if (!shop) return res.status(404).json({ error: "Shop not found" });
 
-    const topProducts = await OrderItem.aggregate([
-      { $match: { product_id: { $in: productIds } } },
-      { $group: { _id: "$product_id", totalSold: { $sum: "$quantity" } } },
-      { $sort: { totalSold: -1 } },
-      { $limit: 5 },
-      {
-        $lookup: {
-          from: "products",
-          localField: "_id",
-          foreignField: "_id",
-          as: "product",
-        },
-      },
-      { $unwind: "$product" },
-      { $project: { name: "$product.name", totalSold: 1 } },
-    ]);
+    const products = await Product.find({ shop_id: shop._id });
+    const productIds = products.map((p) => p._id);
+
+    const images = await ProductImage.find({ product_id: { $in: productIds } });
+    const productsWithImages = products.map((product) => {
+      const productImages = images
+        .filter((img) => img.product_id.toString() === product._id.toString())
+        .map((img) => img.url);
+      return { ...product.toObject(), images: productImages };
+    });
+
+    const orderItems = await OrderItem.find({
+      product_id: { $in: productIds },
+    });
+    const orderIds = [...new Set(orderItems.map((item) => item.order_id.toString()))];
+    const orders = await Order.find({ _id: { $in: orderIds } });
+
+    const completedOrders = orders.filter((o) => o.status === "completed");
+    const totalRevenue = completedOrders.reduce((sum, o) => sum + o.total_price, 0);
+    const totalOrders = completedOrders.length;
+    const totalCancelled = orders.filter((o) => o.status === "cancelled").length;
+
+    const revenueByMonth = {};
+    for (const order of completedOrders) {
+      const monthKey = moment(order.created_at).format("YYYY-MM");
+      revenueByMonth[monthKey] = (revenueByMonth[monthKey] || 0) + order.total_price;
+    }
+
+    const completedOrderIds = new Set(completedOrders.map((o) => o._id.toString()));
+    const productSales = {};
+    for (const item of orderItems) {
+      if (completedOrderIds.has(item.order_id.toString())) {
+        const pid = item.product_id.toString();
+        productSales[pid] = (productSales[pid] || 0) + item.quantity;
+      }
+    }
+
+    const topProducts = Object.entries(productSales)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([productId, quantity]) => {
+        const product = products.find((p) => p._id.toString() === productId);
+        return product ? {
+          product_id: productId,
+          name: product.name,
+          quantity_sold: quantity,
+        } : null;
+      }).filter(Boolean);
 
     res.json({
-      totalOrders: orders.length,
+      ...shop.toObject(),
+      address: shop.address || "",
+      productCount: products.length,
+      products: productsWithImages,
       totalRevenue,
-      totalSold,
+      totalOrders,
+      totalCancelled,
+      revenueByMonth,
       topProducts,
+      rating: shop.rating || 0,
     });
   } catch (err) {
+    console.error("Failed to get seller stats:", err);
     res.status(500).json({ error: "Failed to get seller stats" });
   }
 };
+

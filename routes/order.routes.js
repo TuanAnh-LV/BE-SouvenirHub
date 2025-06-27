@@ -18,7 +18,7 @@ const { validate } = require("../middlewares/validate.middleware");
  * @swagger
  * /api/orders:
  *   post:
- *     summary: Place a new order
+ *     summary: Tạo đơn hàng mới
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
@@ -28,21 +28,29 @@ const { validate } = require("../middlewares/validate.middleware");
  *         application/json:
  *           schema:
  *             type: object
+ *             required: [shipping_address_id, items]
  *             properties:
  *               shipping_address_id:
+ *                 type: string
+ *               voucher_id:
  *                 type: string
  *               items:
  *                 type: array
  *                 items:
  *                   type: object
+ *                   required: [product_id, quantity]
  *                   properties:
  *                     product_id:
  *                       type: string
+ *                     variant_id:
+ *                       type: string
+ *                       description: ID của mẫu mã sản phẩm (nếu có)
  *                     quantity:
  *                       type: integer
+ *                       example: 2
  *     responses:
  *       201:
- *         description: Order placed
+ *         description: Đơn hàng đã được tạo
  */
 router.post(
   "/",
@@ -113,15 +121,44 @@ router.put("/:id/cancel", verifyToken, orderController.cancelOrder);
  *         description: Order not found
  */
 
-router.patch(
-  "/:id/status",
+/**
+ * @swagger
+ * /api/orders/{id}/confirm-received:
+ *   put:
+ *     summary: Khách hàng xác nhận đã nhận hàng
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID của đơn hàng
+ *     responses:
+ *       200:
+ *         description: Đơn hàng đã được xác nhận nhận hàng
+ *       400:
+ *         description: Đơn hàng không hợp lệ để xác nhận
+ *       404:
+ *         description: Không tìm thấy đơn hàng
+ */
+router.put(
+  '/:id/confirm-received',
   verifyToken,
-  requireRole(["admin", "seller"]),
-  updateOrderStatusValidator,
-  validate,
-  orderController.updateOrderStatus
+  orderController.confirmReceivedByUser
 );
 
+
+router.patch(
+    '/:id/status',
+    verifyToken,
+    requireRole(['admin', 'seller']),
+    updateOrderStatusValidator,
+    validate,
+    orderController.updateOrderStatus
+  );
 /**
  * @swagger
  * /api/orders/{id}/status:

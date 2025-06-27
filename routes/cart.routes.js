@@ -88,6 +88,12 @@ router.put("/update",verifyToken, cartController.updateCartItem);
  *         required: true
  *         schema:
  *           type: string
+ *       - in: query
+ *         name: variantId
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: ID của mẫu mã (nếu có)
  *     responses:
  *       200:
  *         description: Updated cart
@@ -112,7 +118,7 @@ router.delete("/clear",verifyToken, cartController.clearCart);
  * @swagger
  * /api/cart/checkout:
  *   post:
- *     summary: Checkout and create order from selected items in cart
+ *     summary: Thanh toán các sản phẩm đã chọn từ giỏ hàng
  *     tags: [Cart]
  *     security:
  *       - bearerAuth: []
@@ -122,26 +128,25 @@ router.delete("/clear",verifyToken, cartController.clearCart);
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - shipping_address_id
- *               - selectedProductIds
+ *             required: [shipping_address_id, selectedItems]
  *             properties:
  *               shipping_address_id:
  *                 type: string
- *                 example: "665f0b52e8e7b0c7c0d4f3ab"
- *               selectedProductIds:
+ *               selectedItems:
  *                 type: array
  *                 items:
- *                   type: string
- *                 example: ["665f0a88e8e7b0c7c0d4f3aa", "665f0a99e8e7b0c7c0d4f3bb"]
+ *                   type: object
+ *                   required: [productId]
+ *                   properties:
+ *                     productId:
+ *                       type: string
+ *                     variantId:
+ *                       type: string
+ *                       nullable: true
+ *                       description: ID mẫu mã (nếu có)
  *     responses:
  *       201:
- *         description: Order created from selected cart items
- *       400:
- *         description: Bad request, missing or invalid selectedProductIds
- *       500:
- *         description: Server error
+ *         description: Đã tạo đơn hàng thành công
  */
-
 router.post("/checkout",verifyToken, cartController.checkoutFromCart);
 module.exports = router;
