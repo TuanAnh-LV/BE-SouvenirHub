@@ -43,3 +43,13 @@ exports.deleteAddress = async (req, res) => {
     res.status(400).json({ error: 'Failed to delete address' });
   }
 };
+
+exports.getAddressById = async (req, res) => {
+  try {
+    const address = await Address.findById(req.params.id);
+    if (!address) return res.status(404).json({ error: 'Address not found' });
+    res.json(address);
+  } catch (err) {
+    res.status(400).json({ error: 'Failed to fetch address' });
+  }
+};

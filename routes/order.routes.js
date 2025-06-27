@@ -1,9 +1,12 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const orderController = require('../controllers/order.controller');
-const { verifyToken,requireRole } = require('../middlewares/auth.middleware');
-const { createOrderValidator, updateOrderStatusValidator } = require('../validators/order.validator');
-const { validate } = require('../middlewares/validate.middleware');
+const orderController = require("../controllers/order.controller");
+const { verifyToken, requireRole } = require("../middlewares/auth.middleware");
+const {
+  createOrderValidator,
+  updateOrderStatusValidator,
+} = require("../validators/order.validator");
+const { validate } = require("../middlewares/validate.middleware");
 /**
  * @swagger
  * tags:
@@ -15,7 +18,7 @@ const { validate } = require('../middlewares/validate.middleware');
  * @swagger
  * /api/orders:
  *   post:
- *     summary: Place a new order
+ *     summary: Tạo đơn hàng mới
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
@@ -25,29 +28,39 @@ const { validate } = require('../middlewares/validate.middleware');
  *         application/json:
  *           schema:
  *             type: object
+ *             required: [shipping_address_id, items]
  *             properties:
  *               shipping_address_id:
+ *                 type: string
+ *               voucher_id:
  *                 type: string
  *               items:
  *                 type: array
  *                 items:
  *                   type: object
+ *                   required: [product_id, quantity]
  *                   properties:
  *                     product_id:
  *                       type: string
+ *                     variant_id:
+ *                       type: string
+ *                       description: ID của mẫu mã sản phẩm (nếu có)
  *                     quantity:
  *                       type: integer
+ *                       example: 2
  *     responses:
  *       201:
- *         description: Order placed
+ *         description: Đơn hàng đã được tạo
  */
 router.post(
-    '/',
-    verifyToken,
-    createOrderValidator,
-    validate,
-    orderController.createOrder
-  );
+  "/",
+  verifyToken,
+  createOrderValidator,
+  validate,
+  orderController.createOrder
+);
+
+router.get("/myorders", verifyToken, orderController.getAllOrdersOfMyShop);
 
 /**
  * @swagger
@@ -61,7 +74,7 @@ router.post(
  *       200:
  *         description: List of orders
  */
-router.get('/', verifyToken, orderController.getMyOrders);
+router.get("/", verifyToken, orderController.getMyOrders);
 
 /**
  * @swagger
@@ -81,9 +94,9 @@ router.get('/', verifyToken, orderController.getMyOrders);
  *       200:
  *         description: Order details
  */
-router.get('/:id', verifyToken, orderController.getOrderById);
+router.get("/:id", verifyToken, orderController.getOrderById);
 
-router.put('/:id/cancel', verifyToken, orderController.cancelOrder);
+router.put("/:id/cancel", verifyToken, orderController.cancelOrder);
 /**
  * @swagger
  * /api/orders/{id}/cancel:
@@ -183,5 +196,45 @@ router.patch(
  *         description: Order not found
  */
 
+/**
+ * @swagger
+ * /api/orders/{id}:
+ *   put:
+ *     summary: Update order (address, voucher, total_price) if order is still pending
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the order to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               shipping_address_id:
+ *                 type: string
+ *                 description: New shipping address ID
+ *               voucher_id:
+ *                 type: string
+ *                 description: New voucher ID (optional)
+ *               total_price:
+ *                 type: number
+ *                 description: Total price after voucher (optional, will be validated)
+ *     responses:
+ *       200:
+ *         description: Order updated
+ *       400:
+ *         description: Cannot update non-pending order or invalid voucher or total_price
+ *       404:
+ *         description: Order not found
+ */
+router.put('/:id', verifyToken, orderController.updateOrder);
 
 module.exports = router;

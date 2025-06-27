@@ -2,7 +2,7 @@ const Product = require("../models/product.model");
 const Shop = require("../models/shop.model");
 const ProductImage = require("../models/productImage.model");
 const sanitizeHtml = require("sanitize-html");
-
+const ProductVariant = require('../models/productVariant.model');
 exports.getAll = async (req, res) => {
   try {
     const {
@@ -161,24 +161,20 @@ exports.searchProducts = async (req, res) => {
 
 
 exports.getById = async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id)
-      .populate({ path: "category_id", select: "name" })
-      .populate({ path: "shop_id", select: "name" });
+  const product = await Product.findById(req.params.id)
+    .populate('category_id', 'name')
+    .populate('shop_id', 'name');
 
-    if (!product) return res.status(404).json({ error: "Product not found" });
+  if (!product) return res.status(404).json({ error: 'Product not found' });
 
-    const images = await ProductImage.find({ product_id: product._id });
-    const imageUrls = images.map((img) => img.url);
+  const images = await ProductImage.find({ product_id: product._id });
+  const variants = await ProductVariant.find({ product_id: product._id });
 
-    res.json({ ...product.toObject(), images: imageUrls });
-  } catch (err) {
-    console.error("Error fetching product by ID:", err);
-    res.status(500).json({
-      error: "PRODUCT_FETCH_FAILED",
-      message: "Failed to fetch product",
-    });
-  }
+  res.json({
+    ...product.toObject(),
+    images: images.map((img) => img.url),
+    variants,
+  });
 };
 
 exports.create = async (req, res) => {

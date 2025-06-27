@@ -46,6 +46,7 @@ const swaggerOptions = {
       { name: "ShopApplications", description: "Shop application management" },
       { name: "Categories", description: "Product categories" },
       { name: "Products", description: "Product creation and browsing" },
+      { name: "ProductVariants", description:"Product variant"},
       { name: "ProductImages", description: "Product image management" },
       { name: "Cart", description: "Add to cart" },
       { name: "Orders", description: "Order placement and tracking" },
@@ -128,4 +129,9 @@ app.use("/api/blog-images", blogImageRoutes);
 const voucherRoutes = require("./routes/voucher.routes");
 app.use("/api/vouchers", voucherRoutes);
 
+const bookingRoutes = require("./routes/booking.routes");
+app.use("/api/bookings", bookingRoutes);
+
+const productVariant = require("./routes/productVariant.routes")
+app.use('/api/product-variants', productVariant);
 module.exports = app;

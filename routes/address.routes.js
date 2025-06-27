@@ -98,4 +98,27 @@ router.put('/:id', verifyToken, addressController.updateAddress);
  */
 router.delete('/:id', verifyToken, addressController.deleteAddress);
 
+/**
+ * @swagger
+ * /api/addresses/{id}:
+ *   get:
+ *     summary: Get address by ID
+ *     tags: [Addresses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Address ID
+ *     responses:
+ *       200:
+ *         description: Address found
+ *       404:
+ *         description: Address not found
+ */
+router.get('/:id', addressController.getAddressById);
+
 module.exports = router;
