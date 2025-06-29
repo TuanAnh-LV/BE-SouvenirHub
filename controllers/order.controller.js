@@ -415,8 +415,8 @@ exports.updateOrder = async (req, res) => {
 
     res.json({ message: 'Order updated', order });
   } catch (err) {
-    console.error('Update order error:', err);
-    res.status(500).json({ error: 'Failed to update order' });
+    console.error("Update order error:", err);
+    res.status(500).json({ error: "Thanh toán thất bại", detail: err.message });
   }
 };
 exports.confirmReceivedByUser = async (req, res) => {

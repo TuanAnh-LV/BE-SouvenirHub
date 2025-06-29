@@ -4,6 +4,7 @@ const orderSchema = new mongoose.Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   shipping_address_id: { type: mongoose.Schema.Types.ObjectId, ref: 'ShippingAddress', required: true },
   shop_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', required: true },
+  order_code: { type: Number, required: true, unique: true }, // Thêm dòng này
   status: {
     type: String,
     enum: ['pending', 'processing', 'shipped', 'completed', 'cancelled'],
