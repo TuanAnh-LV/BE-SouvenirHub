@@ -275,6 +275,7 @@ exports.clearCart = async (req, res) => {
 
 exports.checkoutFromCart = async (req, res) => {
   try {
+    const orderCode = Math.floor(Math.random() * 1000000000); // số < 1 tỷ
     const { shipping_address_id, selectedItems } = req.body;
 
     if (!selectedItems || !Array.isArray(selectedItems) || selectedItems.length === 0) {
@@ -367,6 +368,7 @@ exports.checkoutFromCart = async (req, res) => {
         shipping_address_id,
         total_price,
         status: "pending",
+        order_code: orderCode,
       });
 
       await order.save();
