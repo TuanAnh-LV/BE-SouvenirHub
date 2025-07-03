@@ -198,10 +198,27 @@ exports.handleMomoNotify = async (req, res) => {
 
 exports.handlePayOS = async (req, res) => {
   try {
-    const { orderCode, status } = req.body;
-    console.log("Webhook received:", req.body);
+    // Nếu webhook trả về dạng { code, desc, success, data: { ... }, signature }
+    const data = req.body.data || {};
+    const orderCode = data.orderCode || req.body.orderCode;
+    // Nếu có trường status thì lấy, còn không thì dựa vào code/desc/success
+    // Ví dụ: code === '00' && success === true => thành công
+    // code !== '00' hoặc success === false => thất bại/hủy
 
-    // Xử lý thanh toán thành công
+    let status;
+    if (req.body.status) {
+      status = req.body.status;
+    } else if (req.body.code === '00' && req.body.success === true) {
+      status = 'PAID';
+    } else if (data.code === '00' && req.body.success === true) {
+      status = 'PAID';
+    } else {
+      status = 'FAILED';
+    }
+
+    console.log("Webhook received:", req.body);
+    console.log("Parsed orderCode:", orderCode, "status:", status);
+
     if (status === "PAID" || status === "SUCCEEDED" || status === "SUCCESS") {
       const order = await Order.findOne({ order_code: orderCode });
       if (order) {
@@ -211,9 +228,7 @@ exports.handlePayOS = async (req, res) => {
       } else {
         console.log("Order not found with order_code:", orderCode);
       }
-    }
-    // Xử lý thanh toán bị hủy hoặc thất bại
-    else if (
+    } else if (
       status === "CANCELLED" ||
       status === "CANCELED" ||
       status === "FAILED" ||
@@ -221,7 +236,7 @@ exports.handlePayOS = async (req, res) => {
     ) {
       const order = await Order.findOne({ order_code: orderCode });
       if (order) {
-        order.status = "cancelled"; // hoặc "failed" tùy ý bạn
+        order.status = "cancelled";
         await order.save();
         console.log("Order updated to cancelled:", order);
       } else {
