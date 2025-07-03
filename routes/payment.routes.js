@@ -43,7 +43,7 @@ router.post('/mock', verifyToken, mockPayValidator, validate, paymentController.
 
 router.post('/payos/create', paymentController.createPayOSPayment);
 
-router.post('/payos/webhook', paymentController.handlePayOSWebhook);
+router.post('/payos/webhook', paymentController.handlePayOS);
 
 
 /**
