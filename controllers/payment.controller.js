@@ -198,52 +198,35 @@ exports.handleMomoNotify = async (req, res) => {
 
 exports.handlePayOS = async (req, res) => {
   try {
-    // Nếu webhook trả về dạng { code, desc, success, data: { ... }, signature }
+    // Lấy thông tin từ webhook
     const data = req.body.data || {};
-    const orderCode = data.orderCode || req.body.orderCode;
-    // Nếu có trường status thì lấy, còn không thì dựa vào code/desc/success
-    // Ví dụ: code === '00' && success === true => thành công
-    // code !== '00' hoặc success === false => thất bại/hủy
+    const orderCode = data.orderCode;
+    const payosCode = data.code; // "00" là thành công
+    const payosSuccess = req.body.success;
 
+    // Log để debug
+    console.log("Webhook received:", req.body);
+
+    // Xác định trạng thái
     let status;
-    if (req.body.status) {
-      status = req.body.status;
-    } else if (req.body.code === '00' && req.body.success === true) {
-      status = 'PAID';
-    } else if (data.code === '00' && req.body.success === true) {
-      status = 'PAID';
+    if (payosCode === "00" && payosSuccess === true) {
+      status = "PAID";
     } else {
-      status = 'FAILED';
+      status = "FAILED";
     }
 
-    console.log("Webhook received:", req.body);
-    console.log("Parsed orderCode:", orderCode, "status:", status);
-
-    if (status === "PAID" || status === "SUCCEEDED" || status === "SUCCESS") {
-      const order = await Order.findOne({ order_code: orderCode });
-      if (order) {
+    // Tìm đơn hàng và cập nhật trạng thái
+    const order = await Order.findOne({ order_code: orderCode });
+    if (order) {
+      if (status === "PAID") {
         order.status = "processing";
-        await order.save();
-        console.log("Order updated to processing:", order);
       } else {
-        console.log("Order not found with order_code:", orderCode);
+        order.status = "cancelled"; // hoặc "failed" tùy ý bạn
       }
-    } else if (
-      status === "CANCELLED" ||
-      status === "CANCELED" ||
-      status === "FAILED" ||
-      status === "EXPIRED"
-    ) {
-      const order = await Order.findOne({ order_code: orderCode });
-      if (order) {
-        order.status = "cancelled";
-        await order.save();
-        console.log("Order updated to cancelled:", order);
-      } else {
-        console.log("Order not found with order_code:", orderCode);
-      }
+      await order.save();
+      console.log("Order updated:", order);
     } else {
-      console.log("Status not handled:", status);
+      console.log("Order not found with order_code:", orderCode);
     }
 
     res.status(200).json({ message: "Webhook received" });
