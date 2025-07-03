@@ -196,17 +196,39 @@ exports.handleMomoNotify = async (req, res) => {
 };
 
 
-exports.handlePayOSWebhook = async (req, res) => {
+exports.handlePayOS = async (req, res) => {
   try {
-    const { orderCode, status } = req.body; // Tùy cấu trúc PayOS trả về
+    const { orderCode, status } = req.body;
+    console.log("Webhook received:", req.body);
 
-    // Chỉ xử lý khi thanh toán thành công
+    // Xử lý thanh toán thành công
     if (status === "PAID" || status === "SUCCEEDED" || status === "SUCCESS") {
       const order = await Order.findOne({ order_code: orderCode });
       if (order) {
         order.status = "processing";
         await order.save();
+        console.log("Order updated to processing:", order);
+      } else {
+        console.log("Order not found with order_code:", orderCode);
       }
+    }
+    // Xử lý thanh toán bị hủy hoặc thất bại
+    else if (
+      status === "CANCELLED" ||
+      status === "CANCELED" ||
+      status === "FAILED" ||
+      status === "EXPIRED"
+    ) {
+      const order = await Order.findOne({ order_code: orderCode });
+      if (order) {
+        order.status = "cancelled"; // hoặc "failed" tùy ý bạn
+        await order.save();
+        console.log("Order updated to cancelled:", order);
+      } else {
+        console.log("Order not found with order_code:", orderCode);
+      }
+    } else {
+      console.log("Status not handled:", status);
     }
 
     res.status(200).json({ message: "Webhook received" });
