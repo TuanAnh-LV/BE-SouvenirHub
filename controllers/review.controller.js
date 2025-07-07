@@ -57,3 +57,31 @@ exports.getProductReviews = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch reviews' });
   }
 };
+exports.checkUserCanReview = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const userId = req.user.id;
+
+    // 1. Đã đánh giá chưa?
+    const alreadyReviewed = await Review.exists({
+      product_id: productId,
+      user_id: userId
+    });
+
+    // 2. Đã mua chưa?
+    const hasPurchased = await Order.exists({
+      user_id: userId,
+      status: 'completed',
+      _id: { $in: await OrderItem.find({ product_id: productId }).distinct('order_id') }
+    });
+
+    res.json({
+      canReview: hasPurchased && !alreadyReviewed,
+      alreadyReviewed,
+      hasPurchased
+    });
+  } catch (err) {
+    console.error('Check review permission error:', err);
+    res.status(500).json({ error: 'Failed to check review permission' });
+  }
+};
