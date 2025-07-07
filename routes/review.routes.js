@@ -36,6 +36,25 @@ const { verifyToken } = require('../middlewares/auth.middleware');
  *         description: Review submitted
  */
 router.post('/', verifyToken, reviewController.createReview);
+/**
+ * @swagger
+ * /api/reviews/{productId}/check:
+ *   get:
+ *     summary: Check if user can review the product
+ *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: productId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Check result
+ */
+router.get('/:productId/check', verifyToken, reviewController.checkUserCanReview);
 
 /**
  * @swagger
