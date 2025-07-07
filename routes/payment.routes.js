@@ -39,6 +39,13 @@ const {
  */
 router.post('/mock', verifyToken, mockPayValidator, validate, paymentController.mockPay);
 
+
+
+router.post('/payos/create', paymentController.createPayOSPayment);
+
+router.post('/payos/webhook', paymentController.handlePayOS);
+
+
 /**
  * @swagger
  * /api/payments/online:

@@ -61,6 +61,42 @@ exports.processOnlinePayment = async (req, res) => {
   }
 };
 
+exports.createPayOSPayment = async (req, res) => {
+  try {
+    const { amount, orderCode, description, returnUrl, cancelUrl } = req.body;
+    const clientId = process.env.PAYOS_CLIENT_ID;
+    const apiKey = process.env.PAYOS_API_KEY;
+    const checksumKey = process.env.PAYOS_CHECKSUM_KEY;
+
+    // Tạo chuỗi data theo đúng thứ tự alphabet
+    const data = `amount=${amount}&cancelUrl=${cancelUrl}&description=${description}&orderCode=${orderCode}&returnUrl=${returnUrl}`;
+    // Tạo signature
+    const signature = crypto
+      .createHmac('sha256', checksumKey)
+      .update(data)
+      .digest('hex');
+
+    const response = await axios.post('https://api-merchant.payos.vn/v2/payment-requests', {
+      amount,
+      orderCode,
+      description,
+      returnUrl,
+      cancelUrl,
+      signature
+    }, {
+      headers: {
+        'x-client-id': clientId,
+        'x-api-key': apiKey,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    res.json(response.data);
+  } catch (error) {
+    res.status(500).json({ message: 'Tạo thanh toán thất bại', error: error.message });
+  }
+};
+
 exports.createMomoPayment = async (req, res) => {
   try {
     const { order_id } = req.body;
@@ -156,5 +192,45 @@ exports.handleMomoNotify = async (req, res) => {
     }
   } catch (err) {
     return res.status(500).end();
+  }
+};
+
+
+exports.handlePayOS = async (req, res) => {
+  try {
+    const data = req.body.data || {};
+    const orderCode = data.orderCode;
+    const payosCode = data.code;
+    const payosSuccess = req.body.success;
+
+    // Log để debug mọi trường hợp
+    console.log("Webhook received (cancel test):", JSON.stringify(req.body));
+
+    let status;
+    if (payosCode === "00" && payosSuccess === true) {
+      status = "PAID";
+    } else if (payosCode !== "00" || payosSuccess === false) {
+      status = "CANCELLED"; // hoặc "FAILED" tùy ý bạn
+    } else {
+      status = "UNKNOWN";
+    }
+
+    const order = await Order.findOne({ order_code: orderCode });
+    if (order) {
+      if (status === "PAID") {
+        order.status = "processing";
+      } else if (status === "CANCELLED") {
+        order.status = "cancelled";
+      }
+      await order.save();
+      console.log("Order updated:", order);
+    } else {
+      console.log("Order not found with order_code:", orderCode);
+    }
+
+    res.status(200).json({ message: "Webhook received" });
+  } catch (err) {
+    console.error("PayOS webhook error:", err);
+    res.status(500).json({ error: "Webhook processing failed" });
   }
 };
