@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/user.model'); // cần model User
 
-exports.verifyToken = (req, res, next) => {
+exports.verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith('Bearer ')) {
@@ -11,12 +12,22 @@ exports.verifyToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // { id, role }
+    const user = await User.findById(decoded.id);
+
+    if (!user) return res.status(401).json({ message: 'User not found' });
+
+    req.user = {
+      id: user._id.toString(),
+      role: user.role,
+      shop_id: user.shop_id?.toString() || null,
+    };
+
     next();
   } catch (err) {
     return res.status(401).json({ message: 'Invalid or expired token' });
   }
 };
+
 
 exports.requireRole = (roles) => {
   return (req, res, next) => {

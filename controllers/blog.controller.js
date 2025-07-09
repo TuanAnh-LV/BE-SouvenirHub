@@ -64,7 +64,6 @@ exports.createBlog = async (req, res) => {
 
 exports.getMyBlogs = async (req, res) => {
   try {
-    console.log('>>>>>>>>>>>>>>>>>>>>>>>>>>getMyBlogs called');
     const blogs = await Blog.find({ user: req.user.id })
       .populate("user", "name");
     // ... tương tự đoạn trên

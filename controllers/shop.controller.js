@@ -30,6 +30,8 @@ exports.createShop = async (req, res) => {
       status: "pending",
     });
     await shop.save();
+    const User = require("../models/user.model");
+    await User.findByIdAndUpdate(req.user.id, { shop_id: shop._id });
     res
       .status(201)
       .json({ message: "Shop registered and pending approval", shop });

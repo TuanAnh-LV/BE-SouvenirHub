@@ -45,7 +45,7 @@ const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
  *       201:
  *         description: Tạo thành công
  */
-router.post('/', verifyToken, requireRole('admin'), voucherController.createVoucher);
+router.post('/', verifyToken, requireRole(['admin', 'seller']), voucherController.createVoucher);
 
 /**
  * @swagger
@@ -110,7 +110,7 @@ router.get('/:id', verifyToken, voucherController.getVoucherById);
  *       200:
  *         description: Đã cập nhật
  */
-router.put('/:id', verifyToken, requireRole('admin'), voucherController.updateVoucher);
+router.put('/:id', verifyToken, requireRole(['admin', 'seller']), voucherController.updateVoucher);
 
 /**
  * @swagger
@@ -130,6 +130,6 @@ router.put('/:id', verifyToken, requireRole('admin'), voucherController.updateVo
  *       200:
  *         description: Xoá thành công
  */
-router.delete('/:id', verifyToken, requireRole('admin'), voucherController.deleteVoucher);
+router.delete('/:id', verifyToken, requireRole(['admin', 'seller']), voucherController.deleteVoucher);
 
 module.exports = router;
