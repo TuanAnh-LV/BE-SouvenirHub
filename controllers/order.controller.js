@@ -264,7 +264,6 @@ exports.updateOrderStatus = async (req, res) => {
 exports.getAllOrdersOfMyShop = async (req, res) => {
   try {
     const shop = await Shop.findOne({ user_id: req.user.id });
-    console.log("Shop:", shop);
 
     // 2. Tìm tất cả sản phẩm thuộc shop này
     const shopProducts = await Product.find({ shop_id: shop._id }, "_id");

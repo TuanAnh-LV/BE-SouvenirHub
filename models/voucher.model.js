@@ -8,7 +8,9 @@ const voucherSchema = new mongoose.Schema({
   expires_at: { type: Date, required: true },
   description: { type: String },
   min_order_value: { type: Number, default: 0 },
-  max_discount: { type: Number, default: 0 }, // <--- thêm dòng này
+  max_discount: { type: Number, default: 0 },
+  shop_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', default: null },
+  created_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   created_at: { type: Date, default: Date.now }
 });
 
