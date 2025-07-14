@@ -12,6 +12,21 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ✅ Biến để lưu io instance
+let ioInstance = null;
+
+function setSocketIO(io) {
+  ioInstance = io;
+}
+
+// ✅ Gắn req.io vào request
+app.use((req, res, next) => {
+  if (ioInstance) {
+    req.io = ioInstance;
+  }
+  next();
+});
+
 // MongoDB connection
 mongoose
   .connect(process.env.MONGO_URI, {
@@ -53,6 +68,7 @@ const swaggerOptions = {
       { name: "Addresses", description: "Shipping address management" },
       { name: "Payments", description: "Payment processing and management" },
       { name: "Reviews", description: "Product reviews and ratings" },
+      { name: "Notifications",description: "Notification"},
     ],
     components: {
       securitySchemes: {
@@ -134,4 +150,7 @@ app.use("/api/bookings", bookingRoutes);
 
 const productVariant = require("./routes/productVariant.routes")
 app.use('/api/product-variants', productVariant);
-module.exports = app;
+
+const notificationRoutes = require("./routes/notifications.routes");
+app.use('/api/notifications', notificationRoutes);
+module.exports = { app, setSocketIO };
