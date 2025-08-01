@@ -339,6 +339,7 @@ exports.getPendingProducts = async (req, res) => {
   }
 };
 
+
 exports.getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
@@ -371,7 +372,14 @@ exports.getAllUsers = async (req, res) => {
     res.status(500).json({ error: "Failed to update shop" });
   }
 };
-
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select("-password");
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to get users" });
+  }
+};
 exports.deleteShop = async (req, res) => {
   try {
     const shopId = req.params.id;
@@ -383,55 +391,28 @@ exports.deleteShop = async (req, res) => {
       ShopImage.deleteMany({ shop_id: shopId }),
     ]);
 
-    // ✅ Xoá liên kết shop_id trong user (nếu có)
-    await User.findOneAndUpdate({ shop_id: shopId }, { shop_id: null });
+    // ✅ Cập nhật user: xoá shop_id và đổi role thành 'customer'
+    await User.findOneAndUpdate(
+      { shop_id: shopId },
+      {
+        $set: {
+          shop_id: null,
+          role: 'buyer'
+        }
+      }
+    );
 
     const deleted = await Shop.findByIdAndDelete(shopId);
     if (!deleted) return res.status(404).json({ error: "Shop not found" });
 
     res.json({ message: "Shop and related data deleted successfully" });
   } catch (err) {
-    console.error("❌ Failed to delete shop:", err);
+    console.error(" Failed to delete shop:", err);
     res.status(500).json({ error: "Failed to delete shop" });
   }
 };
 
 
-exports.approveProduct = async (req, res) => {
-  try {
-    const { productId } = req.params;
-    const product = await Product.findById(productId);
-    if (!product) return res.status(404).json({ error: "Product not found" });
-
-    product.status = "onSale";
-    await product.save();
-
-    res.json({ message: "Product approved and set to onSale", product });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to approve product" });
-  }
-};
-
-exports.getPendingProducts = async (req, res) => {
-  try {
-    const products = await Product.find({ status: "pendingApproval" }).populate(
-      "shop_id",
-      "name"
-    );
-    res.json(products);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch pending products" });
-  }
-};
-
-exports.getAllUsers = async (req, res) => {
-  try {
-    const users = await User.find().select("-password");
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to get users" });
-  }
-};
 
 exports.getUserById = async (req, res) => {
   try {
