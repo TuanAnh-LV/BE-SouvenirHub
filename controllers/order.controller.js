@@ -433,7 +433,7 @@ exports.confirmReceivedByUser = async (req, res) => {
       return res.status(400).json({ error: 'Only processing orders can be confirmed as received' });
     }
 
-    order.status = 'shipped';
+    order.status = 'completed';
     await order.save();
 
     res.json({ message: 'Order marked as shipped (received by customer)', order });
