@@ -91,10 +91,7 @@ exports.updateOrderStatus = async (req, res) => {
 
 exports.getSellerStats = async (req, res) => {
   try {
-    const shop = await Shop.findOne({ user_id: req.user.id }).populate(
-      "user_id",
-      "name email"
-    );
+    const shop = await Shop.findOne({ user_id: req.user.id }).populate("user_id", "name email");
     if (!shop) return res.status(404).json({ error: "Shop not found" });
 
     const products = await Product.find({ shop_id: shop._id });
@@ -108,39 +105,47 @@ exports.getSellerStats = async (req, res) => {
       return { ...product.toObject(), images: productImages };
     });
 
-    const orderItems = await OrderItem.find({
-      product_id: { $in: productIds },
-    });
+    const orderItems = await OrderItem.find({ product_id: { $in: productIds } });
     const orderIds = [...new Set(orderItems.map((item) => item.order_id.toString()))];
     const orders = await Order.find({ _id: { $in: orderIds } });
 
     const completedOrders = orders.filter((o) => o.status === "completed");
+
+    // 1. Tính tổng hoa hồng
     let totalCommission = 0;
-for (const item of orderItems) {
-  const order = completedOrders.find(
-    (o) => o._id.toString() === item.order_id.toString()
-  );
-  if (!order) continue;
+    for (const item of orderItems) {
+      const order = completedOrders.find(
+        (o) => o._id.toString() === item.order_id.toString()
+      );
+      if (!order) continue;
 
-  const productPrice = item.price;
-  const rate = getCommissionRate(productPrice);
-  totalCommission += productPrice * rate * item.quantity;
-}
+      const productPrice = Number(item.price?.$numberDecimal || item.price || 0);
+      const rate = getCommissionRate(productPrice);
+      totalCommission += productPrice * rate * item.quantity;
+    }
 
-// 2. Tính tổng doanh thu gốc từ đơn hoàn thành
-const totalRevenue = completedOrders.reduce((sum, o) => sum + o.total_price, 0);
+    // 2. Tính tổng doanh thu từ các đơn hoàn thành
+    const totalRevenue = completedOrders.reduce((sum, o) => {
+      const total = Number(o.total_price?.$numberDecimal || o.total_price || 0);
+      return sum + total;
+    }, 0);
 
-// 3. Tính doanh thu thực nhận
-const netRevenue = totalRevenue - totalCommission;
+    // 3. Tính doanh thu thực nhận
+    const netRevenue = totalRevenue - totalCommission;
+
+    // 4. Đếm số đơn
     const totalOrders = completedOrders.length;
     const totalCancelled = orders.filter((o) => o.status === "cancelled").length;
 
+    // 5. Doanh thu theo tháng
     const revenueByMonth = {};
     for (const order of completedOrders) {
+      const total = Number(order.total_price?.$numberDecimal || order.total_price || 0);
       const monthKey = moment(order.created_at).format("YYYY-MM");
-      revenueByMonth[monthKey] = (revenueByMonth[monthKey] || 0) + order.total_price;
+      revenueByMonth[monthKey] = (revenueByMonth[monthKey] || 0) + total;
     }
 
+    // 6. Tính sản phẩm bán chạy
     const completedOrderIds = new Set(completedOrders.map((o) => o._id.toString()));
     const productSales = {};
     for (const item of orderItems) {
@@ -162,14 +167,15 @@ const netRevenue = totalRevenue - totalCommission;
         } : null;
       }).filter(Boolean);
 
+    // 7. Trả kết quả
     res.json({
       ...shop.toObject(),
       address: shop.address || "",
       productCount: products.length,
       products: productsWithImages,
       totalRevenue,
-      totalCommission,        // Tổng phí hoa hồng
-      netRevenue,             // Doanh thu thực nhận
+      totalCommission,
+      netRevenue,
       totalOrders,
       totalCancelled,
       revenueByMonth,
@@ -181,4 +187,5 @@ const netRevenue = totalRevenue - totalCommission;
     res.status(500).json({ error: "Failed to get seller stats" });
   }
 };
+
 
