@@ -158,6 +158,7 @@ exports.getMyOrders = async (req, res) => {
 
 exports.getOrderById = async (req, res) => {
   try {
+    console.log("==> Đã vào getOrderById");
     const order = await Order.findOne({
       _id: req.params.id,
     }).populate("user_id", "name email");
@@ -440,5 +441,40 @@ exports.confirmReceivedByUser = async (req, res) => {
   } catch (err) {
     console.error('Error confirming received order:', err);
     res.status(500).json({ error: 'Failed to confirm received order' });
+  }
+};
+
+exports.getAllOrders = async (req, res) => {
+  try {
+    console.log("Bắt đầu lấy orders");
+    const orders = await Order.find()
+      .populate("user_id", "name email")
+      .sort({ created_at: -1 });
+    console.log("Tìm thấy orders:", orders.length);
+
+    const result = [];
+    for (const order of orders) {
+      console.log("Đang xử lý order:", order._id);
+      const rawItems = await OrderItem.find({ order_id: order._id })
+        .populate({
+          path: "product_id",
+          populate: { path: "shop_id", select: "name" }
+        })
+        .populate("variant_id");
+      console.log("OrderItems:", rawItems.length);
+
+      // Nếu nghi ngờ enrichOrderItems lỗi, thử comment dòng dưới
+      const items = await enrichOrderItems(rawItems);
+      // const items = rawItems; // Dùng rawItems để debug
+
+      console.log("Enriched items:", items.length);
+
+      result.push({ ...order.toObject(), items });
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error("Error fetching all orders:", err); // Log chi tiết lỗi
+    res.status(500).json({ error: "Failed to fetch all orders", detail: err.message });
   }
 };

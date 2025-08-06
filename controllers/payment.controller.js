@@ -234,3 +234,25 @@ exports.handlePayOS = async (req, res) => {
     res.status(500).json({ error: "Webhook processing failed" });
   }
 };
+
+exports.handlePayOSReturn = async (req, res) => {
+  try {
+    const { orderCode, status } = req.query;
+    console.log("PayOS return received:", req.query);
+
+    const order = await Order.findOne({ order_code: orderCode });
+    if (order) {
+      if (status === "CANCELLED") {
+        order.status = "cancelled";
+        await order.save();
+        console.log("Order cancelled via redirect:", order);
+      }
+      // Có thể xử lý thêm các status khác nếu muốn
+    }
+    // Trả về trang thông báo cho user (hoặc redirect về trang nào đó)
+    res.send("Đã cập nhật trạng thái đơn hàng.");
+  } catch (err) {
+    console.error("PayOS return error:", err);
+    res.status(500).send("Lỗi cập nhật trạng thái đơn hàng.");
+  }
+};
