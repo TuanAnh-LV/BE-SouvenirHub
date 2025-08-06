@@ -6,12 +6,7 @@ const mongoose = require("mongoose");
 const ProductImage = require("../models/productImage.model");
 const moment = require("moment");
 
-function getCommissionRate(price) {
-  if (price < 100000) return 0.03;
-  if (price <= 400000) return 0.07;
-  if (price <= 1000000) return 0.12;
-  return 0.07;
-}
+
 exports.getShopOrders = async (req, res) => {
   try {
     console.log("Current user ID from token:", req.user.id);
@@ -88,7 +83,12 @@ exports.updateOrderStatus = async (req, res) => {
     res.status(400).json({ error: "Failed to update order status" });
   }
 };
-
+function getCommissionRate(price) {
+  if (price < 100000) return 0.03;
+  if (price <= 400000) return 0.07;
+  if (price <= 1000000) return 0.12;
+  return 0.07;
+}
 exports.getSellerStats = async (req, res) => {
   try {
     const shop = await Shop.findOne({ user_id: req.user.id }).populate("user_id", "name email");

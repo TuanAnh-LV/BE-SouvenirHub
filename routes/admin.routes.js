@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/admin.controller');
-
+const upload = require('../middlewares/upload.middleware');
 const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
 
 /**
@@ -39,6 +39,75 @@ const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
  *                     type: string
  */
 router.get('/users', verifyToken, requireRole(['admin']), adminController.getAllUsers);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   put:
+ *     summary: Admin update user info (with optional avatar upload)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID người dùng
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *               gender:
+ *                 type: string
+ *               birthday:
+ *                 type: string
+ *                 format: date
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Người dùng đã được cập nhật
+ *       400:
+ *         description: Lỗi cập nhật
+ *       404:
+ *         description: Không tìm thấy người dùng
+ */
+router.put("/users/:id", verifyToken, requireRole(['admin']),upload.single("avatar"), adminController.updateUser);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   delete:
+ *     summary: Admin delete a user
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID người dùng
+ *     responses:
+ *       200:
+ *         description: Người dùng đã bị xoá
+ *       404:
+ *         description: Không tìm thấy người dùng
+ */
+router.delete('/users/:id', verifyToken, requireRole(['admin']), adminController.deleteUser);
 
 /**
  * @swagger

@@ -103,7 +103,7 @@ exports.getShopById = async (req, res) => {
     const productIds = products.map((p) => p._id);
     const images = await ProductImage.find({ product_id: { $in: productIds } });
 
-    // Attach images to products, like getAll
+    // Attach images to products
     const productsWithImages = products.map((product) => {
       const productImages = images
         .filter((img) => img.product_id.toString() === product._id.toString())
@@ -111,9 +111,36 @@ exports.getShopById = async (req, res) => {
       return { ...product.toObject(), images: productImages };
     });
 
-    res.json({ shop, products: productsWithImages });
+    // ✅ Tính rating trung bình và tổng số đánh giá cho shop
+    const ratedProducts = products.filter(
+      (p) => p.averageRating && p.reviewCount > 0
+    );
+
+    const averageShopRating =
+      ratedProducts.length > 0
+        ? (
+            ratedProducts.reduce((sum, p) => sum + p.averageRating, 0) /
+            ratedProducts.length
+          ).toFixed(1)
+        : 0;
+
+    const totalReviewCount = ratedProducts.reduce(
+      (sum, p) => sum + (p.reviewCount || 0),
+      0
+    );
+
+    // ✅ Trả dữ liệu về FE
+    res.json({
+      shop: {
+        ...shop.toObject(),
+        rating: Number(averageShopRating),
+        reviewCount: totalReviewCount,
+      },
+      products: productsWithImages,
+    });
   } catch (err) {
     console.error("Fetch shop by ID error:", err);
     res.status(500).json({ error: "Failed to fetch shop" });
   }
 };
+
