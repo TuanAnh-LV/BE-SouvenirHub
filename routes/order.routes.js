@@ -60,6 +60,27 @@ router.post(
   orderController.createOrder
 );
 
+/**
+ * @swagger
+ * /api/orders/all:
+ *   get:
+ *     summary: Lấy toàn bộ đơn hàng trong hệ thống (admin)
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách tất cả đơn hàng với thông tin user và sản phẩm
+ *       403:
+ *         description: Không có quyền truy cập
+ */
+router.get(
+  "/all",
+  verifyToken,
+  requireRole(['admin']),
+  orderController.getAllOrders
+);
+
 router.get("/myorders", verifyToken, orderController.getAllOrdersOfMyShop);
 
 /**
@@ -196,6 +217,9 @@ router.patch(
  *         description: Order not found
  */
 
+
+
+
 /**
  * @swagger
  * /api/orders/{id}:
@@ -236,5 +260,7 @@ router.patch(
  *         description: Order not found
  */
 router.put('/:id', verifyToken, orderController.updateOrder);
+
+
 
 module.exports = router;
