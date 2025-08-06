@@ -8,6 +8,9 @@ const Shop = require("../models/shop.model");
 const { sendMail } = require("../utils/mailer");
 const ShopApplication = require("../models/shopApplication.model");
 const ShopImage = require("../models/shopImage.model");
+const { uploadToCloudinary } = require("../utils/cloudinary"); 
+const { isValidImage } = require('../utils/validator'); 
+
 exports.getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find().populate("user_id shipping_address_id");
@@ -45,25 +48,67 @@ exports.adminUpdateStatus = async (req, res) => {
 };
 exports.getAdminStats = async (req, res) => {
   try {
+    // 1. Tổng số liệu
     const totalUsers = await User.countDocuments();
     const totalOrders = await Order.countDocuments();
+    const totalProducts = await Product.countDocuments();
+    const totalShops = await Shop.countDocuments();
+
+    // 2. Tổng doanh thu
     const payments = await OrderItem.find();
     const revenue = payments.reduce(
       (sum, item) => sum + parseFloat(item.price.toString()) * item.quantity,
       0
     );
 
+    // 3. Đơn hàng theo trạng thái
     const ordersByStatus = await Order.aggregate([
       { $group: { _id: "$status", count: { $sum: 1 } } },
     ]);
 
+    // 4. Doanh thu theo tháng (6 tháng gần nhất)
+    const recentOrders = await Order.find({ status: "completed" });
+    const revenueByMonth = {};
+
+    recentOrders.forEach((order) => {
+      const monthKey = moment(order.created_at).format("YYYY-MM");
+      const price = Number(order.total_price?.$numberDecimal || order.total_price || 0);
+      revenueByMonth[monthKey] = (revenueByMonth[monthKey] || 0) + price;
+    });
+
+    // 5. Người dùng mới theo tháng (6 tháng gần nhất)
+    const sixMonthsAgo = moment().subtract(6, "months").startOf("month").toDate();
+    const usersByMonthAgg = await User.aggregate([
+      { $match: { created_at: { $gte: sixMonthsAgo } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m", date: "$created_at" } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const usersByMonth = {};
+    usersByMonthAgg.forEach((item) => {
+      usersByMonth[item._id] = item.count;
+    });
+    
+    
+
+    // ✅ Trả về
     res.json({
       totalUsers,
       totalOrders,
       totalRevenue: revenue,
       ordersByStatus,
+      totalProducts,
+      totalShops,
+      revenueByMonth,
+      usersByMonth,
     });
   } catch (err) {
+    console.error("getAdminStats error:", err);
     res.status(500).json({ error: "Failed to get admin stats" });
   }
 };
@@ -106,17 +151,29 @@ const ProductImage = require("../models/productImage.model"); // nhớ import n�
 
 const moment = require("moment"); // thêm nếu bạn chưa có
 
+
+function getCommissionRate(price) {
+  if (price < 100000) return 0.03;
+  if (price <= 400000) return 0.07;
+  if (price <= 1000000) return 0.12;
+  return 0.07;
+}
+
 exports.getShopById = async (req, res) => {
   try {
-    const shop = await Shop.findById(req.params.id).populate(
-      "user_id",
-      "name email"
-    );
+    const shop = await Shop.findById(req.params.id).populate("user_id", "name email");
     if (!shop) return res.status(404).json({ error: "Shop not found" });
 
     const products = await Product.find({ shop_id: shop._id });
     const productIds = products.map((p) => p._id);
-
+const ratedProducts = products.filter(p => p.averageRating && p.reviewCount > 0);
+const rating =
+  ratedProducts.length > 0
+    ? (
+        ratedProducts.reduce((sum, p) => sum + p.averageRating, 0) /
+        ratedProducts.length
+      ).toFixed(1)
+    : 0;
     const images = await ProductImage.find({ product_id: { $in: productIds } });
     const productsWithImages = products.map((product) => {
       const productImages = images
@@ -125,38 +182,48 @@ exports.getShopById = async (req, res) => {
       return { ...product.toObject(), images: productImages };
     });
 
-    const orderItems = await OrderItem.find({
-      product_id: { $in: productIds },
-    });
-    const orderIds = [
-      ...new Set(orderItems.map((item) => item.order_id.toString())),
-    ];
+    const orderItems = await OrderItem.find({ product_id: { $in: productIds } });
+    const orderIds = [...new Set(orderItems.map((item) => item.order_id.toString()))];
     const orders = await Order.find({ _id: { $in: orderIds } });
 
-    const completedOrders = orders.filter(
-      (order) => order.status === "completed"
-    );
-    const completedOrderIds = new Set(
-      completedOrders.map((o) => o._id.toString())
-    );
+    const completedOrders = orders.filter((order) => order.status === "completed");
+    const completedOrderIds = new Set(completedOrders.map((o) => o._id.toString()));
 
-   const totalRevenue = completedOrders.reduce((sum, order) => sum + order.total_price, 0);
+    // 🔢 Tổng doanh thu
+    const totalRevenue = completedOrders.reduce((sum, order) => {
+      const price = Number(order.total_price?.$numberDecimal || order.total_price || 0);
+      return sum + price;
+    }, 0);
 
-   
+    // 🔢 Tổng hoa hồng
+    let totalCommission = 0;
+    for (const item of orderItems) {
+      const order = completedOrders.find(
+        (o) => o._id.toString() === item.order_id.toString()
+      );
+      if (!order) continue;
 
+      const price = Number(item.price?.$numberDecimal || item.price || 0);
+      const rate = getCommissionRate(price);
+      totalCommission += price * rate * item.quantity;
+    }
+
+    // 🔢 Doanh thu thực nhận
+    const netRevenue = totalRevenue - totalCommission;
+
+    // 🔢 Thống kê đơn
     const totalOrders = completedOrders.length;
-    const totalCancelled = orders.filter(
-      (o) => o.status === "cancelled"
-    ).length;
+    const totalCancelled = orders.filter((o) => o.status === "cancelled").length;
 
-    // 🔢 1. Doanh thu theo tháng
+    // 🔢 Doanh thu theo tháng
     const revenueByMonth = {};
     for (const order of completedOrders) {
       const monthKey = moment(order.created_at).format("YYYY-MM");
-      revenueByMonth[monthKey] = (revenueByMonth[monthKey] || 0) + order.total_price;
+      const price = Number(order.total_price?.$numberDecimal || order.total_price || 0);
+      revenueByMonth[monthKey] = (revenueByMonth[monthKey] || 0) + price;
     }
 
-    // 🔢 2. Sản phẩm bán chạy nhất
+    // 🔢 Sản phẩm bán chạy
     const productSales = {};
     for (const item of orderItems) {
       if (completedOrderIds.has(item.order_id.toString())) {
@@ -166,8 +233,8 @@ exports.getShopById = async (req, res) => {
     }
 
     const topProducts = Object.entries(productSales)
-      .sort((a, b) => b[1] - a[1]) // sort by quantity sold
-      .slice(0, 5) // top 5
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
       .map(([productId, quantity]) => {
         const product = products.find((p) => p._id.toString() === productId);
         return product
@@ -186,17 +253,20 @@ exports.getShopById = async (req, res) => {
       productCount: products.length,
       products: productsWithImages,
       totalRevenue,
+      totalCommission,
+      netRevenue,
       totalOrders,
       totalCancelled,
       revenueByMonth,
       topProducts,
-      rating: shop.rating || 0,
+      rating: Number(rating),
     });
   } catch (err) {
-    console.error(" Failed to fetch shop by ID:", err);
+    console.error("Failed to fetch shop by ID:", err);
     res.status(500).json({ error: "Failed to fetch shop" });
   }
 };
+
 
 exports.updateShopStatus = async (req, res) => {
   try {
@@ -363,23 +433,68 @@ exports.getProductById = async (req, res) => {
 
 exports.getAllUsers = async (req, res) => {
   try {
-    const updated = await Shop.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-    });
-    if (!updated) return res.status(404).json({ error: "Shop not found" });
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to update shop" });
-  }
-};
-exports.getAllUsers = async (req, res) => {
-  try {
-    const users = await User.find().select("-password");
+    const users = await User.find({}, "-password_hash");
     res.json(users);
   } catch (err) {
-    res.status(500).json({ error: "Failed to get users" });
+    res.status(500).json({ error: "Failed to fetch users" });
   }
 };
+exports.updateUser = async (req, res) => {
+  try {
+    const updates = { ...req.body };
+
+    // Remove empty strings
+    Object.keys(updates).forEach((key) => {
+      if (updates[key] === "") {
+        delete updates[key];
+      }
+    });
+
+    // Validate file type
+    if (req.file && !isValidImage(req.file.mimetype)) {
+      return res.status(400).json({ error: "Invalid file type" });
+    }
+
+    if (req.file) {
+      const result = await uploadToCloudinary(
+        req.file.buffer,
+        "souvenirhub/avatars"
+      );
+      updates.avatar = result.secure_url;
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    Object.assign(user, updates);
+    await user.save();
+
+    res.json({
+      message: "User updated",
+      user: user.toObject({ versionKey: false }),
+    });
+  } catch (err) {
+    console.error("Update user error:", err);
+    res.status(500).json({ error: "Failed to update user" });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const deleted = await User.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ error: "User not found" });
+
+    // ✅ Nếu user là seller, cũng xóa shop nếu có (nếu muốn)
+    if (deleted.shop_id) {
+      await Shop.findByIdAndDelete(deleted.shop_id);
+    }
+
+    res.json({ message: "User deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete user" });
+  }
+};
+
 exports.deleteShop = async (req, res) => {
   try {
     const shopId = req.params.id;
@@ -411,8 +526,6 @@ exports.deleteShop = async (req, res) => {
     res.status(500).json({ error: "Failed to delete shop" });
   }
 };
-
-
 
 exports.getUserById = async (req, res) => {
   try {
