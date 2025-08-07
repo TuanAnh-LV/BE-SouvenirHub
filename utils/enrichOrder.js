@@ -24,11 +24,10 @@ async function enrichOrderItems(items) {
       quantity: item.quantity,
       price: parseFloat(item.price?.toString() || 0),
 
-      product: {
-        _id: product._id,
-        name: product.name,
-        image: variantImages[0] || productImages?.[0] || '/placeholder.jpg',
-      },
+    product: {
+  ...product,
+  image: variantImages[0] || productImages?.[0] || '/placeholder.jpg',
+},
 
       variant: variant
         ? {

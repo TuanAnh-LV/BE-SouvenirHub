@@ -10,7 +10,7 @@ const ShopApplication = require("../models/shopApplication.model");
 const ShopImage = require("../models/shopImage.model");
 const { uploadToCloudinary } = require("../utils/cloudinary"); 
 const { isValidImage } = require('../utils/validator'); 
-
+const mongoose = require('mongoose');
 exports.getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find().populate("user_id shipping_address_id");
@@ -54,12 +54,22 @@ exports.getAdminStats = async (req, res) => {
     const totalProducts = await Product.countDocuments();
     const totalShops = await Shop.countDocuments();
 
-    // 2. Tổng doanh thu
-    const payments = await OrderItem.find();
-    const revenue = payments.reduce(
-      (sum, item) => sum + parseFloat(item.price.toString()) * item.quantity,
-      0
-    );
+    // 2. Tổng doanh thu (chỉ tính đơn hàng completed)
+const completedOrdersForRevenue = await Order.find({ status: "completed" });
+
+const revenue = completedOrdersForRevenue.reduce((sum, order) => {
+  let price = 0;
+  if (order.total_price instanceof mongoose.Types.Decimal128) {
+    price = parseFloat(order.total_price.toString());
+  } else if (typeof order.total_price === "number") {
+    price = order.total_price;
+  } else if (typeof order.total_price === "string") {
+    price = parseFloat(order.total_price);
+  }
+  return sum + price;
+}, 0);
+console.log("tonrg tien", revenue);
+
 
     // 3. Đơn hàng theo trạng thái
     const ordersByStatus = await Order.aggregate([
@@ -67,17 +77,29 @@ exports.getAdminStats = async (req, res) => {
     ]);
 
     // 4. Doanh thu theo tháng (6 tháng gần nhất)
-    const recentOrders = await Order.find({ status: "completed" });
-    const revenueByMonth = {};
+    const sixMonthsAgo = moment().subtract(6, "months").startOf("month").toDate();
+    const completedOrders = await Order.find({
+      status: "completed",
+      created_at: { $gte: sixMonthsAgo }
+    });
 
-    recentOrders.forEach((order) => {
-      const monthKey = moment(order.created_at).format("YYYY-MM");
-      const price = Number(order.total_price?.$numberDecimal || order.total_price || 0);
-      revenueByMonth[monthKey] = (revenueByMonth[monthKey] || 0) + price;
+    const revenueByMonth = {};
+    completedOrders.forEach((order) => {
+      const month = moment(order.created_at).format("YYYY-MM");
+
+      let price = 0;
+      if (order.total_price instanceof mongoose.Types.Decimal128) {
+        price = parseFloat(order.total_price.toString());
+      } else if (typeof order.total_price === "number") {
+        price = order.total_price;
+      } else if (typeof order.total_price === "string") {
+        price = parseFloat(order.total_price);
+      }
+
+      revenueByMonth[month] = (revenueByMonth[month] || 0) + price;
     });
 
     // 5. Người dùng mới theo tháng (6 tháng gần nhất)
-    const sixMonthsAgo = moment().subtract(6, "months").startOf("month").toDate();
     const usersByMonthAgg = await User.aggregate([
       { $match: { created_at: { $gte: sixMonthsAgo } } },
       {
@@ -93,8 +115,6 @@ exports.getAdminStats = async (req, res) => {
     usersByMonthAgg.forEach((item) => {
       usersByMonth[item._id] = item.count;
     });
-    
-    
 
     // ✅ Trả về
     res.json({
@@ -107,6 +127,7 @@ exports.getAdminStats = async (req, res) => {
       revenueByMonth,
       usersByMonth,
     });
+
   } catch (err) {
     console.error("getAdminStats error:", err);
     res.status(500).json({ error: "Failed to get admin stats" });

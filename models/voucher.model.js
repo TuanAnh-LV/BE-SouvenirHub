@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const voucherSchema = new mongoose.Schema({
   code: { type: String, required: true, unique: true },
   discount: { type: Number, required: true },
-  type: { type: String, enum: ['percent', 'amount'], default: 'percent' },
+  type: { type: String, enum: ['percent', 'amount','freeship'], default: 'percent' },
   quantity: { type: Number, required: true },
   expires_at: { type: Date, required: true },
   description: { type: String },
