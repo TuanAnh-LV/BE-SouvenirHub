@@ -45,6 +45,7 @@ router.post('/payos/create', paymentController.createPayOSPayment);
 
 router.post('/payos/webhook', paymentController.handlePayOS);
 
+router.get('/payos-return', paymentController.handlePayOSReturn);
 
 /**
  * @swagger
