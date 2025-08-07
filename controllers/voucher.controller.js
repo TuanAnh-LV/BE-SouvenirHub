@@ -79,21 +79,32 @@ exports.getVoucherById = async (req, res) => {
 exports.updateVoucher = async (req, res) => {
   try {
     const voucher = await Voucher.findById(req.params.id);
-    if (!voucher)
+    if (!voucher) {
       return res.status(404).json({ error: 'Voucher not found' });
-
-    if (
-      req.user.role === 'seller' &&
-      voucher.shop_id?.toString() !== req.user.shop_id
-    ) {
-      return res.status(403).json({ error: 'FORBIDDEN: Not your voucher' });
     }
 
-    const updated = await Voucher.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
+    if (req.user.role === 'seller') {
+      if (!voucher.shop_id) {
+        return res.status(403).json({ error: 'FORBIDDEN: Cannot update global voucher' });
+      }
+      if (voucher.shop_id.toString() !== req.user.shop_id) {
+        return res.status(403).json({ error: 'FORBIDDEN: Not your voucher' });
+      }
+    }
+
+    // Optional: Validate type
+    const allowedTypes = ['percent', 'amount', 'freeship'];
+    if (req.body.type && !allowedTypes.includes(req.body.type)) {
+      return res.status(400).json({
+        error: 'INVALID_TYPE',
+        message: `Loại voucher không hợp lệ. Chỉ chấp nhận: ${allowedTypes.join(', ')}`
+      });
+    }
+
+    const updated = await Voucher.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
 
     res.json(updated);
   } catch (err) {
@@ -103,6 +114,7 @@ exports.updateVoucher = async (req, res) => {
     });
   }
 };
+
 
 exports.deleteVoucher = async (req, res) => {
   try {

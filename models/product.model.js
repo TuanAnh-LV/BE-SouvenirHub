@@ -23,8 +23,6 @@ const productSchema = new mongoose.Schema({
   created_at: { type: Date, default: Date.now }
 });
 
-
-module.exports = mongoose.model('Product', productSchema);
 productSchema.set('toJSON', {
   transform: (doc, ret) => {
     ret.price = parseFloat(ret.price.toString());
@@ -32,4 +30,7 @@ productSchema.set('toJSON', {
     return ret;
   }
 });
+
+module.exports = mongoose.model('Product', productSchema);
+
 

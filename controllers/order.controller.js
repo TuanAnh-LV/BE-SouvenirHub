@@ -164,9 +164,16 @@ exports.getOrderById = async (req, res) => {
     
     if (!order) return res.status(404).json({ error: "Order not found" });
 
-    const rawItems = await OrderItem.find({ order_id: order._id }).populate(
-      "product_id"
-    ).populate("variant_id");;
+    const rawItems = await OrderItem.find({ order_id: order._id })
+  .populate({
+    path: "product_id",
+    populate: {
+      path: "shop_id",
+      select: "name", // 👈 lấy tên shop
+    },
+  })
+  .populate("variant_id");
+
     const items = await enrichOrderItems(rawItems);
 
     res.json({ ...order.toObject(), items });
