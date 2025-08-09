@@ -153,8 +153,7 @@ app.use('/api/product-variants', productVariant);
 
 const notificationRoutes = require("./routes/notifications.routes");
 app.use('/api/notifications', notificationRoutes);
-app.get("/health", (req, res) => {
-  res.status(200).send("OK");
-});
+
 module.exports = { app, setSocketIO };
+
 
