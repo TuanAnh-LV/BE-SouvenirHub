@@ -31,10 +31,5 @@ server.listen(process.env.PORT || 3000, () => {
   console.log(`🚀 Server is running on port ${process.env.PORT || 3000}`);
 });
 
-// 🟢 Keep-alive ping chính server
-setInterval(() => {
-  fetch(`https://souvenirhub-api.onrender.com/api/health`) // thay bằng domain thật
-    .then(() => console.log("Pinged self to stay awake"))
-    .catch(err => console.error("Ping failed:", err));
-}, 1 * 30 * 1000);
+
 
